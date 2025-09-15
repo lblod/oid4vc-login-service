@@ -134,7 +134,23 @@ export class VCIssuer {
     };
   }
 
-  async validateAuthToken(token: string) {}
+  async validateAuthToken(token: string) {
+    const result = await this.getSessionInfoForCredentialOfferToken(token);
+
+    if (result.results.bindings.length === 0) {
+      return null;
+    }
+    const groups = {};
+    result.results.bindings.forEach(async (binding) => {
+      const group = binding.group.value;
+      const role = binding.role.value;
+      if (!groups[group]) {
+        groups[group] = [];
+      }
+      groups[group].push(role);
+    });
+    return groups;
+  }
 
   credentialTokenUriPrefix = 'http://data.lblod.info/credential-offer-token/';
   authCodeTTL = parseInt(process.env.AUTH_CODE_TTL || '60000'); // 1min
@@ -220,18 +236,21 @@ export class VCIssuer {
       }`);
   }
 
-  async isValidCredentialOfferToken(token) {
+  async getSessionInfoForCredentialOfferToken(token) {
     const result = await updateSudo(`
       PREFIX ext: <http://mu.semte.ch/vocabularies/ext/>
       PREFIX mu: <http://mu.semte.ch/vocabularies/core/>
       PREFIX dct: <http://purl.org/dc/terms/>
 
-      ASK {
+      SELECT ?session ?group ?role {
         GRAPH <http://mu.semte.ch/graphs/verifiable-credential-tokens> {
           ?token a ext:CredentialOfferToken ;
           ?token ext:authToken ${token} ;
           ?token ext:session ?session ;
           ?token dct:created ?created .
+          ?session ext:sessionGroup ?group .
+          ?session ext:sessionRole ?role .
+
           FILTER(?created > ${sparqlEscapeDateTime(new Date(Date.now() - this.tokenTTL))})
         }
       }`);

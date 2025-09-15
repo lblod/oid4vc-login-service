@@ -65,7 +65,7 @@ router.get('/issuer_metadata', async function (req, res) {
   const issuerUrl = process.env.ISSUER_URL as string;
   res.send({
     credential_issuer: issuerUrl,
-    authorization_servers: [`${issuerUrl}/vc-issuer/token`], // so we also act as an authorization server
+    authorization_servers: [`${issuerUrl}`], // so we also act as an authorization server, should be the default
     credential_endpoint: `${issuerUrl}/vc-issuer/credential`,
     display: [
       {
@@ -122,6 +122,20 @@ router.get('/issuer_metadata', async function (req, res) {
   });
 });
 
+router.get('authorization_metadata', async function (req, res) {
+  const issuerUrl = process.env.ISSUER_URL as string;
+  res.send({
+    issuer: `${issuerUrl}/vc-issuer/token`,
+    scopes_supported: ['JWT_VC_DECIDE_ROLES'],
+    authorization_endpoint: `${issuerUrl}/authorize`, // we don't have this yet, we don't have grant types that require it
+    token_endpoint: `${issuerUrl}/vc-issuer/token`,
+    response_types_supported: ['code'],
+    grant_types_supported: [
+      'urn:ietf:params:oauth:grant-type:pre-authorized_code',
+    ],
+  });
+});
+
 router.get('/token', async function (req, res) {
   const preAuthorizedCode = req.query.pre_authorized_code as string;
   const transactionCode = req.query.transaction_code as string | undefined;
@@ -144,4 +158,41 @@ router.get('/token', async function (req, res) {
   });
 
   // TODO we may want to offer a nonce endpoint
+});
+
+router.post('/credential', async function (req, res) {
+  const { credential_configuration_id, proofs } = req.body;
+  // TODO logging everything for now to see how far we get with our wallets
+  console.log('Credential config id\n', credential_configuration_id);
+  console.log('Proofs:\n', proofs);
+  const auth = req.get('authorization') as string;
+  console.log('Authorization:\n', auth);
+  if (!auth || !auth.startsWith('Bearer ')) {
+    res.status(401).send({ error: 'invalid_token' });
+    return;
+  }
+  const token = auth.split(' ')[1];
+  const sessionInfo = await issuer.validateAuthToken(token);
+  if (!sessionInfo) {
+    // TODO we don't have actual session info yet, ignore this for now
+    // res.status(401).send({ error: 'invalid_token' });
+    // return;
+  }
+  if (credential_configuration_id !== process.env.CREDENTIAL_TYPE) {
+    res.status(400).send({ error: 'invalid_credential_configuration_id' });
+    return;
+  }
+  if (!proofs || proofs.jwt) {
+    res.status(400).send({ error: 'missing_proof' });
+    return;
+  }
+  const jwt = proofs.jwt[0];
+  const decodedJwt = JSON.parse(atob(jwt));
+  const did = decodedJwt.kid;
+  if (!did || !did.startsWith('did:')) {
+    res.status(400).send({ error: 'invalid_proof' });
+    return;
+  }
+  const signedVC = await issuer.issueCredential(did);
+  res.send({ credentials: [{ credential: signedVC }] });
 });
