@@ -78,7 +78,7 @@ router.get('/issuer_metadata', async function (req, res) {
       },
     ],
     credential_configurations_supported: {
-      SD_JWT_VC_example_in_OpenID4VCI: {
+      DECIDE_EXAMPLE_CREDENTIAL: {
         format: 'ldp_vc',
         scope: 'JWT_VC_DECIDE_ROLES',
         credential_signing_alg_values_supported: ['Ed25519Signature2020'],

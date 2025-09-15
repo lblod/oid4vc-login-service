@@ -113,7 +113,7 @@ export class VCIssuer {
     const randomUuid = crypto.randomUUID(); // this one is important to use proper random libs though
     const credentialOffer = {
       credential_issuer: process.env.ISSUER_URL as string,
-      credential_configuration_ids: [process.env.CREDENTIAL_TYPE as string],
+      credential_configuration_ids: ['DECIDE_EXAMPLE_CREDENTIAL'],
       grants: {
         'urn:ietf:params:oauth:grant-type:pre-authorized_code': {
           pre_authorized_code: randomUuid,
