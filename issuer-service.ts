@@ -9,7 +9,14 @@ import { securityLoader } from '@digitalbazaar/security-document-loader';
 import * as didKey from '@digitalbazaar/did-method-key';
 import * as didWeb from '@digitalbazaar/did-method-web';
 import * as didJwk from '@digitalbazaar/did-method-jwk';
-import { randomUUID } from 'crypto';
+import { randomUUID, randomInt, randomBytes } from 'crypto';
+import { updateSudo } from '@lblod/mu-auth-sudo';
+import {
+  sparqlEscapeDateTime,
+  sparqlEscapeString,
+  sparqlEscapeUri,
+  uuid,
+} from 'mu';
 
 export class VCIssuer {
   suite: Ed25519Signature2020;
@@ -98,5 +105,149 @@ export class VCIssuer {
     });
 
     return verificationResult;
+  }
+  async buildCredentialOfferUri(sessionUri: string) {
+    const pin = randomInt(0, 9999);
+    const randomUuid = crypto.randomUUID(); // this one is important to use proper random libs though
+    const credentialOffer = {
+      credential_issuer: process.env.ISSUER_URL as string,
+      credential_configuration_ids: [process.env.CREDENTIAL_TYPE as string],
+      grants: {
+        'urn:ietf:params:oauth:grant-type:pre-authorized_code': {
+          pre_authorized_code: randomUuid,
+          tx_code: {
+            // might be better to leave this out entirely as we won't be mailing it
+            length: 4,
+            input_mode: 'numeric',
+            description: 'Enter the 4-digit code shown on your screen', // we should send by mail/text message in a real example to have multiple channels
+          },
+        },
+      },
+    };
+    await this.storeCredentialOfferAuthCode(randomUuid, sessionUri, pin);
+    const credentialOfferUri = `openid-credential-offer://?credential_offer=${encodeURIComponent(JSON.stringify(credentialOffer))}`;
+    return {
+      pin,
+      credentialOfferUri,
+    };
+  }
+
+  async validateAuthToken(token: string) {}
+
+  credentialTokenUriPrefix = 'http://data.lblod.info/credential-offer-token/';
+  authCodeTTL = parseInt(process.env.AUTH_CODE_TTL || '60000'); // 1min
+  tokenTTL = parseInt(process.env.TOKEN_TTL || '86400'); // 24h
+
+  async storeCredentialOfferAuthCode(token, sessionUri, pinCode) {
+    const tokenUri = `${this.credentialTokenUriPrefix}${token}`;
+    const paddedPinCode = ('0000' + pinCode).slice(-4);
+
+    await updateSudo(`
+      PREFIX ext: <http://mu.semte.ch/vocabularies/ext/>
+      PREFIX mu: <http://mu.semte.ch/vocabularies/core/>
+      PREFIX dct: <http://purl.org/dc/terms/>
+
+      INSERT DATA {
+        GRAPH <http://mu.semte.ch/graphs/verifiable-credential-tokens> {
+          ${sparqlEscapeUri(tokenUri)} a ext:CredentialOfferAuthCode ;
+            mu:uuid ${sparqlEscapeString(token)} ;
+            ext:session ${sparqlEscapeUri(sessionUri)} ;
+            ext:pinCode ${sparqlEscapeString(paddedPinCode)} ;
+            dct:created ${sparqlEscapeDateTime(new Date())} .
+        }
+      }`);
+  }
+
+  async getSessionForAuthCode(token, pinCode) {
+    const result = await updateSudo(`
+      PREFIX ext: <http://mu.semte.ch/vocabularies/ext/>
+      PREFIX mu: <http://mu.semte.ch/vocabularies/core/>
+      PREFIX dct: <http://purl.org/dc/terms/>
+
+      SELECT ?session {
+        GRAPH <http://mu.semte.ch/graphs/verifiable-credential-tokens> {
+          ?token a ext:CredentialOfferAuthCode .
+          ?token mu:uuid ${sparqlEscapeString(token)} .
+          ?token dct:created ?created .
+          ?token ext:session ?session .
+          ${pinCode ? `?token ext:pinCode ${sparqlEscapeString(pinCode)} .` : ''}
+          FILTER(?created > ${sparqlEscapeDateTime(new Date(Date.now() - this.authCodeTTL))})
+        }
+      } LIMIT 1`);
+    return result.results.bindings[0]?.session.value;
+  }
+
+  async deleteCredentialOfferAuthCode(token) {
+    await updateSudo(`
+      DELETE {
+        GRAPH ?g {
+          ?token ?p ?o.
+        }
+      } WHERE {
+        GRAPH ?g {
+          ?token a ext:CredentialOfferAuthCode ;
+          ?token mu:uuid ${token} ;
+          ?token ?p ?o.
+        }
+      }`);
+  }
+
+  async generateCredentialOfferToken(sessionUri) {
+    const token = randomBytes(32).toString('hex');
+    await this.storeCredentialOfferToken(token, sessionUri);
+    return token;
+  }
+
+  async storeCredentialOfferToken(token, sessionUri) {
+    const id = uuid();
+    const tokenUri = `${this.credentialTokenUriPrefix}${id}`;
+    // TODO i think we should use the account here as the session may be fleeting
+    await updateSudo(`
+      PREFIX ext: <http://mu.semte.ch/vocabularies/ext/>
+      PREFIX mu: <http://mu.semte.ch/vocabularies/core/>
+      PREFIX dct: <http://purl.org/dc/terms/>
+
+      INSERT DATA {
+        GRAPH <http://mu.semte.ch/graphs/verifiable-credential-tokens> {
+          ${sparqlEscapeUri(tokenUri)} a ext:CredentialOfferToken ;
+            mu:uuid ${sparqlEscapeString(id)} ;
+            ext:authToken ${sparqlEscapeString(token)} ;
+            ext:session ${sparqlEscapeUri(sessionUri)} ;
+            dct:created ${sparqlEscapeDateTime(new Date())} .
+        }
+      }`);
+  }
+
+  async isValidCredentialOfferToken(token) {
+    const result = await updateSudo(`
+      PREFIX ext: <http://mu.semte.ch/vocabularies/ext/>
+      PREFIX mu: <http://mu.semte.ch/vocabularies/core/>
+      PREFIX dct: <http://purl.org/dc/terms/>
+
+      ASK {
+        GRAPH <http://mu.semte.ch/graphs/verifiable-credential-tokens> {
+          ?token a ext:CredentialOfferToken ;
+          ?token ext:authToken ${token} ;
+          ?token ext:session ?session ;
+          ?token dct:created ?created .
+          FILTER(?created > ${sparqlEscapeDateTime(new Date(Date.now() - this.tokenTTL))})
+        }
+      }`);
+    return result;
+  }
+
+  async deleteCredentialOfferToken(token) {
+    await updateSudo(`
+      DELETE {
+        GRAPH ?g {
+          ?token ?p ?o.
+        }
+      } WHERE {
+        GRAPH ?g {
+          ?token a ext:CredentialOfferToken ;
+          ?token mu:uuid ${token} ;
+          ?token ?p ?o.
+        }
+      }`);
   }
 }
