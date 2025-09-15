@@ -19,7 +19,7 @@ import {
 } from 'mu';
 
 export class VCIssuer {
-  suite: Ed25519Signature2020;
+  suite;
   documentLoader: (url: string) => Promise<unknown>;
   issuerDid: string;
 
@@ -97,7 +97,9 @@ export class VCIssuer {
   }
 
   // for demo purposes, normally the verifier would do this
-  async verifyCredential(signedVC) {
+  // ignore ts for now as vc library does not have types support
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  async verifyCredential(signedVC: any) {
     const verificationResult = await vc.verifyCredential({
       credential: signedVC,
       suite: this.suite,

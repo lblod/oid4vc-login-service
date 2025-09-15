@@ -1,0 +1,6 @@
+{
+  "compilerOptions": {
+    "types": ["mu-types", "node"]
+  },
+  "exclude": ["node_modules"]
+}
