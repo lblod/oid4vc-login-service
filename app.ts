@@ -137,6 +137,8 @@ router.get('/authorization_metadata', async function (req, res) {
 });
 
 router.post('/token', async function (req, res) {
+  console.log('query', req.query);
+  console.log('body', req.body);
   const preAuthorizedCode = req.query['pre-authorized_code'] as string;
   // const transactionCode = req.query.tx_code as string | undefined;
 
