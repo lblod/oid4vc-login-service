@@ -116,7 +116,7 @@ export class VCIssuer {
       credential_configuration_ids: ['DECIDE_EXAMPLE_CREDENTIAL'],
       grants: {
         'urn:ietf:params:oauth:grant-type:pre-authorized_code': {
-          pre_authorized_code: randomUuid,
+          'pre-authorized_code': randomUuid,
           tx_code: {
             // might be better to leave this out entirely as we won't be mailing it
             length: 4,

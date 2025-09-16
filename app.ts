@@ -81,9 +81,9 @@ router.get('/issuer_metadata', async function (req, res) {
       DECIDE_EXAMPLE_CREDENTIAL: {
         format: 'ldp_vc',
         scope: 'JWT_VC_DECIDE_ROLES',
-        credential_signing_alg_values_supported: ['Ed25519Signature2020'],
+        credential_signing_alg_values_supported: ['EdDSA'], // may need to fall back to ES256 for sphereon wallet TODO
         // cryptographic_binding_methods_supported: ['did:key', 'did:web'], we probably want to add this and require key binding, but for now lets try without
-        credentials_definition: {
+        credential_definition: {
           '@context': [
             'https://www.w3.org/2018/credentials/v1',
             'https://www.w3.org/2018/credentials/examples/v1', // TODO we want to change this to our true context
@@ -96,7 +96,7 @@ router.get('/issuer_metadata', async function (req, res) {
               name: 'Decide Roles Credential',
               locale: 'en-US',
               logo: {
-                uri: `${issuerUrl}/logo.png`,
+                uri: `${issuerUrl}/assets/logo.png`, // TODO this is super temporary and ugly, but the app crashes if it's not there
                 alt_text: 'the square decide logo',
               },
               description:
@@ -122,7 +122,7 @@ router.get('/issuer_metadata', async function (req, res) {
   });
 });
 
-router.get('authorization_metadata', async function (req, res) {
+router.get('/authorization_metadata', async function (req, res) {
   const issuerUrl = process.env.ISSUER_URL as string;
   res.send({
     issuer: `${issuerUrl}/vc-issuer/token`,
@@ -136,9 +136,9 @@ router.get('authorization_metadata', async function (req, res) {
   });
 });
 
-router.get('/token', async function (req, res) {
-  const preAuthorizedCode = req.query.pre_authorized_code as string;
-  const transactionCode = req.query.transaction_code as string | undefined;
+router.post('/token', async function (req, res) {
+  const preAuthorizedCode = req.query['pre-authorized_code'] as string;
+  const transactionCode = req.query.tx_code as string | undefined;
 
   const sessionUri = await issuer.getSessionForAuthCode(
     preAuthorizedCode,
