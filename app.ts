@@ -78,7 +78,7 @@ router.get('/issuer_metadata', async function (req, res) {
       },
     ],
     credential_configurations_supported: {
-      DECIDE_EXAMPLE_CREDENTIAL: {
+      [`${process.env.CREDENTIAL_TYPE}`]: {
         format: 'ldp_vc',
         scope: 'JWT_VC_DECIDE_ROLES',
         credential_signing_alg_values_supported: ['EdDSA'], // may need to fall back to ES256 for sphereon wallet TODO

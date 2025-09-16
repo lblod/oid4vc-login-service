@@ -113,7 +113,7 @@ export class VCIssuer {
     const randomUuid = crypto.randomUUID(); // this one is important to use proper random libs though
     const credentialOffer = {
       credential_issuer: process.env.ISSUER_URL as string,
-      credential_configuration_ids: ['DECIDE_EXAMPLE_CREDENTIAL'],
+      credential_configuration_ids: [`${process.env.CREDENTIAL_TYPE}`],
       grants: {
         'urn:ietf:params:oauth:grant-type:pre-authorized_code': {
           'pre-authorized_code': randomUuid,
@@ -251,9 +251,9 @@ export class VCIssuer {
 
       SELECT ?session ?group ?role {
         GRAPH <http://mu.semte.ch/graphs/verifiable-credential-tokens> {
-          ?token a ext:CredentialOfferToken ;
-          ?token ext:authToken ${token} ;
-          ?token ext:session ?session ;
+          ?token a ext:CredentialOfferToken .
+          ?token ext:authToken ${sparqlEscapeString(token)} .
+          ?token ext:session ?session .
           ?token dct:created ?created .
           ?session ext:sessionGroup ?group .
           ?session ext:sessionRole ?role .
@@ -272,8 +272,8 @@ export class VCIssuer {
         }
       } WHERE {
         GRAPH ?g {
-          ?token a ext:CredentialOfferToken ;
-          ?token mu:uuid ${token} ;
+          ?token a ext:CredentialOfferToken .
+          ?token mu:uuid ${token} .
           ?token ?p ?o.
         }
       }`);
