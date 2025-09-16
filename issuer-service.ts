@@ -109,7 +109,7 @@ export class VCIssuer {
     return verificationResult;
   }
   async buildCredentialOfferUri(sessionUri: string) {
-    const pin = randomInt(0, 9999);
+    // const pin = randomInt(0, 9999);
     const randomUuid = crypto.randomUUID(); // this one is important to use proper random libs though
     const credentialOffer = {
       credential_issuer: process.env.ISSUER_URL as string,
@@ -117,19 +117,18 @@ export class VCIssuer {
       grants: {
         'urn:ietf:params:oauth:grant-type:pre-authorized_code': {
           'pre-authorized_code': randomUuid,
-          tx_code: {
-            // might be better to leave this out entirely as we won't be mailing it
-            length: 4,
-            input_mode: 'numeric',
-            description: 'Enter the 4-digit code shown on your screen', // we should send by mail/text message in a real example to have multiple channels
-          },
+          // tx_code: {
+          //   // might be better to leave this out entirely as we won't be mailing it
+          //   length: 4,
+          //   input_mode: 'numeric',
+          //   description: 'Enter the 4-digit code shown on your screen', // we should send by mail/text message in a real example to have multiple channels
+          // },
         },
       },
     };
-    await this.storeCredentialOfferAuthCode(randomUuid, sessionUri, pin);
+    await this.storeCredentialOfferAuthCode(randomUuid, sessionUri);
     const credentialOfferUri = `openid-credential-offer://?credential_offer=${encodeURIComponent(JSON.stringify(credentialOffer))}`;
     return {
-      pin,
       credentialOfferUri,
     };
   }
@@ -156,9 +155,13 @@ export class VCIssuer {
   authCodeTTL = parseInt(process.env.AUTH_CODE_TTL || '60000'); // 1min
   tokenTTL = parseInt(process.env.TOKEN_TTL || '86400'); // 24h
 
-  async storeCredentialOfferAuthCode(token, sessionUri, pinCode) {
+  async storeCredentialOfferAuthCode(token, sessionUri, pinCode?: number) {
     const tokenUri = `${this.credentialTokenUriPrefix}${token}`;
-    const paddedPinCode = ('0000' + pinCode).slice(-4);
+    let pinCodeData = '';
+    if (pinCode !== undefined) {
+      const paddedPinCode = ('0000' + pinCode).slice(-4);
+      pinCodeData = `ext:pinCode ${sparqlEscapeString(paddedPinCode)} ;`;
+    }
 
     await updateSudo(`
       PREFIX ext: <http://mu.semte.ch/vocabularies/ext/>
@@ -170,13 +173,17 @@ export class VCIssuer {
           ${sparqlEscapeUri(tokenUri)} a ext:CredentialOfferAuthCode ;
             mu:uuid ${sparqlEscapeString(token)} ;
             ext:session ${sparqlEscapeUri(sessionUri)} ;
-            ext:pinCode ${sparqlEscapeString(paddedPinCode)} ;
+            ${pinCodeData}
             dct:created ${sparqlEscapeDateTime(new Date())} .
         }
       }`);
   }
 
-  async getSessionForAuthCode(token, pinCode) {
+  async getSessionForAuthCode(token, pinCode?: string) {
+    let pinCodeCheck = 'FILTER NOT EXISTS { ?token ext:pinCode ?pinCode . }';
+    if (pinCode) {
+      pinCodeCheck = `?token ext:pinCode ${sparqlEscapeString(pinCode)} .`;
+    }
     const result = await updateSudo(`
       PREFIX ext: <http://mu.semte.ch/vocabularies/ext/>
       PREFIX mu: <http://mu.semte.ch/vocabularies/core/>
@@ -188,7 +195,7 @@ export class VCIssuer {
           ?token mu:uuid ${sparqlEscapeString(token)} .
           ?token dct:created ?created .
           ?token ext:session ?session .
-          ${pinCode ? `?token ext:pinCode ${sparqlEscapeString(pinCode)} .` : ''}
+          ${pinCodeCheck}
           FILTER(?created > ${sparqlEscapeDateTime(new Date(Date.now() - this.authCodeTTL))})
         }
       } LIMIT 1`);

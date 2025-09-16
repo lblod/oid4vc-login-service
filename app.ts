@@ -138,11 +138,11 @@ router.get('/authorization_metadata', async function (req, res) {
 
 router.post('/token', async function (req, res) {
   const preAuthorizedCode = req.query['pre-authorized_code'] as string;
-  const transactionCode = req.query.tx_code as string | undefined;
+  // const transactionCode = req.query.tx_code as string | undefined;
 
   const sessionUri = await issuer.getSessionForAuthCode(
     preAuthorizedCode,
-    transactionCode,
+    // transactionCode,
   );
   if (!sessionUri) {
     res.status(403).send({ error: 'invalid_grant' });
