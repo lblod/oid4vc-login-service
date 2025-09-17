@@ -83,7 +83,42 @@ router.get('/issuer_metadata', async function (req, res) {
       },
     ],
     credential_configurations_supported: {
-      // note: not a single wallet found that supports ldp_vc
+      // this is NOT linked data, which is sad
+      [`${process.env.CREDENTIAL_TYPE}_sd_jwt`]: {
+        format: 'vc+sd-jwt', // latest spec actually says dc+sd-jwt
+        scope: 'JWT_VC_DECIDE_ROLES',
+        credential_signing_alg_values_supported: ['ES256'],
+        // cryptographic_binding_methods_supported: ['did:key', 'did:web'], we probably want to add this and require key binding, but for now lets try without
+        vct: `${process.env.ISSUER_URL}/vc-issuer/vct`, // TODO this should be properly resolvable see https://datatracker.ietf.org/doc/html/draft-ietf-oauth-sd-jwt-vc-10
+        credential_metadata: {
+          display: [
+            {
+              name: 'Decide Roles Credential',
+              locale: 'en-US',
+              logo: {
+                uri: `${issuerUrl}/assets/logo.png`, // TODO this is super temporary and ugly, but the app crashes if it's not there
+                alt_text: 'the square decide logo',
+              },
+              description:
+                'A credential that holds the groups you have access to in Decide',
+              background_color: '#12107c',
+              text_color: '#FFFFFF',
+            },
+          ],
+          claims: [
+            {
+              path: ['alumniOf'],
+              display: [
+                {
+                  name: 'Degree',
+                  locale: 'en-US',
+                },
+              ],
+            },
+          ],
+        },
+      },
+      // note: not a single wallet found that supports ldp_vc and works
       [`${process.env.CREDENTIAL_TYPE}`]: {
         format: 'ldp_vc',
         scope: 'JWT_VC_DECIDE_ROLES',
@@ -124,41 +159,6 @@ router.get('/issuer_metadata', async function (req, res) {
           ],
         },
       },
-      // this is NOT linked data, which is sad
-      [`${process.env.CREDENTIAL_TYPE}_sd_jwt`]: {
-        format: 'dc+sd-jwt',
-        scope: 'JWT_VC_DECIDE_ROLES',
-        credential_signing_alg_values_supported: ['ES256'],
-        // cryptographic_binding_methods_supported: ['did:key', 'did:web'], we probably want to add this and require key binding, but for now lets try without
-        vct: 'https://credentials.example.com/identity_credential', // TODO this should be properly resolvable see https://datatracker.ietf.org/doc/html/draft-ietf-oauth-sd-jwt-vc-10
-        credential_metadata: {
-          display: [
-            {
-              name: 'Decide Roles Credential',
-              locale: 'en-US',
-              logo: {
-                uri: `${issuerUrl}/assets/logo.png`, // TODO this is super temporary and ugly, but the app crashes if it's not there
-                alt_text: 'the square decide logo',
-              },
-              description:
-                'A credential that holds the groups you have access to in Decide',
-              background_color: '#12107c',
-              text_color: '#FFFFFF',
-            },
-          ],
-          claims: [
-            {
-              path: ['alumniOf'],
-              display: [
-                {
-                  name: 'Degree',
-                  locale: 'en-US',
-                },
-              ],
-            },
-          ],
-        },
-      },
     },
   });
 });
@@ -174,6 +174,30 @@ router.get('/authorization_metadata', async function (req, res) {
     grant_types_supported: [
       'urn:ietf:params:oauth:grant-type:pre-authorized_code',
     ],
+  });
+});
+
+router.get('/vct', function (req, res) {
+  res.send({
+    id: `${process.env.ISSUER_URL}/vc-issuer/vct`,
+    name: 'Decide Data Space Roles Credential',
+    claims: [
+      {
+        path: 'alumniOf',
+        display: { name: 'Degree', locale: 'en-US' },
+        sd: 'allowed',
+      },
+    ],
+    schema: {
+      $schema: 'https://json-schema.org/draft/2020-12/schema',
+      type: 'object',
+      properties: {
+        alumniOf: {
+          type: 'string',
+        },
+      },
+      required: ['alumniOf'],
+    },
   });
 });
 
