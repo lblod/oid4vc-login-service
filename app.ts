@@ -229,6 +229,7 @@ router.post('/token', async function (req, res) {
 });
 
 router.post('/credential', async function (req, res) {
+  console.log('body', req.body);
   const { credential_configuration_id, proofs, proof } = req.body;
 
   // 'proof' is because our wallet follows an old version of the spec
