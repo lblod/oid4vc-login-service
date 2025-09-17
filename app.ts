@@ -15,6 +15,11 @@ app.use(
     },
   }),
 );
+app.use('/', function (req, res, next) {
+  // mandated by the spec
+  res.type('application/json');
+  next();
+});
 
 app.use(router);
 
@@ -78,6 +83,7 @@ router.get('/issuer_metadata', async function (req, res) {
       },
     ],
     credential_configurations_supported: {
+      // note: not a single wallet found that supports ldp_vc
       [`${process.env.CREDENTIAL_TYPE}`]: {
         format: 'ldp_vc',
         scope: 'JWT_VC_DECIDE_ROLES',
@@ -118,6 +124,41 @@ router.get('/issuer_metadata', async function (req, res) {
           ],
         },
       },
+      // this is NOT linked data, which is sad
+      [`${process.env.CREDENTIAL_TYPE}_sd_jwt`]: {
+        format: 'dc+sd-jwt',
+        scope: 'JWT_VC_DECIDE_ROLES',
+        credential_signing_alg_values_supported: ['ES256'],
+        // cryptographic_binding_methods_supported: ['did:key', 'did:web'], we probably want to add this and require key binding, but for now lets try without
+        vct: 'https://credentials.example.com/identity_credential', // TODO this should be properly resolvable see https://datatracker.ietf.org/doc/html/draft-ietf-oauth-sd-jwt-vc-10
+        credential_metadata: {
+          display: [
+            {
+              name: 'Decide Roles Credential',
+              locale: 'en-US',
+              logo: {
+                uri: `${issuerUrl}/assets/logo.png`, // TODO this is super temporary and ugly, but the app crashes if it's not there
+                alt_text: 'the square decide logo',
+              },
+              description:
+                'A credential that holds the groups you have access to in Decide',
+              background_color: '#12107c',
+              text_color: '#FFFFFF',
+            },
+          ],
+          claims: [
+            {
+              path: ['alumniOf'],
+              display: [
+                {
+                  name: 'Degree',
+                  locale: 'en-US',
+                },
+              ],
+            },
+          ],
+        },
+      },
     },
   });
 });
@@ -125,7 +166,7 @@ router.get('/issuer_metadata', async function (req, res) {
 router.get('/authorization_metadata', async function (req, res) {
   const issuerUrl = process.env.ISSUER_URL as string;
   res.send({
-    issuer: `${issuerUrl}/vc-issuer/token`,
+    issuer: issuerUrl,
     scopes_supported: ['JWT_VC_DECIDE_ROLES'],
     authorization_endpoint: `${issuerUrl}/authorize`, // we don't have this yet, we don't have grant types that require it
     token_endpoint: `${issuerUrl}/vc-issuer/token`,
@@ -164,7 +205,10 @@ router.post('/token', async function (req, res) {
 });
 
 router.post('/credential', async function (req, res) {
-  const { credential_configuration_id, proofs } = req.body;
+  const { credential_configuration_id, proofs, proof } = req.body;
+
+  // 'proof' is because our wallet follows an old version of the spec
+  const jwt = proofs?.jwt ? proofs.jwt[0] : proof?.jwt;
   // TODO logging everything for now to see how far we get with our wallets
   console.log('Credential config id\n', credential_configuration_id);
   console.log('Proofs:\n', proofs);
@@ -181,21 +225,24 @@ router.post('/credential', async function (req, res) {
     // res.status(401).send({ error: 'invalid_token' });
     // return;
   }
-  if (credential_configuration_id !== process.env.CREDENTIAL_TYPE) {
-    res.status(400).send({ error: 'invalid_credential_configuration_id' });
-    return;
-  }
-  if (!proofs || proofs.jwt) {
+  // we don't actually have multiple credential types yet, so the wallet won't send this property
+  // if (credential_configuration_id !== process.env.CREDENTIAL_TYPE) {
+  //   res.status(400).send({ error: 'invalid_credential_configuration_id' });
+  //   return;
+  // }
+  // we don't require a proof for now, the wallet sends one anyway, it helps us figure out the did though
+  if (!jwt) {
     res.status(400).send({ error: 'missing_proof' });
     return;
   }
-  const jwt = proofs.jwt[0];
-  const decodedJwt = JSON.parse(atob(jwt));
+  const decodedJwt = JSON.parse(atob(jwt.split('.')[0]));
+  // todo we should validate the proof, but for now let's trust it
   const did = decodedJwt.kid;
   if (!did || !did.startsWith('did:')) {
     res.status(400).send({ error: 'invalid_proof' });
     return;
   }
   const signedVC = await issuer.issueCredential(did);
-  res.send({ credentials: [{ credential: signedVC }] });
+  // credential because our wallet follows an old version of the spec
+  res.send({ credentials: [{ credential: signedVC }], credential: signedVC });
 });
