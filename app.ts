@@ -89,7 +89,7 @@ router.get('/issuer_metadata', async function (req, res) {
         scope: 'JWT_VC_DECIDE_ROLES',
         credential_signing_alg_values_supported: ['ES256'],
         // cryptographic_binding_methods_supported: ['did:key', 'did:web'], we probably want to add this and require key binding, but for now lets try without
-        vct: `${process.env.ISSUER_URL}/vc-issuer/vct`, // TODO this should be properly resolvable see https://datatracker.ietf.org/doc/html/draft-ietf-oauth-sd-jwt-vc-10
+        vct: `${process.env.ISSUER_URL}`, // TODO this should be properly resolvable see https://datatracker.ietf.org/doc/html/draft-ietf-oauth-sd-jwt-vc-10
         credential_metadata: {
           display: [
             {
