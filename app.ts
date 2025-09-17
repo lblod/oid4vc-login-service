@@ -179,7 +179,7 @@ router.get('/authorization_metadata', async function (req, res) {
 
 router.get('/vct', function (req, res) {
   res.send({
-    id: `${process.env.ISSUER_URL}/vc-issuer/vct`,
+    vct: `${process.env.ISSUER_URL}`,
     name: 'Decide Data Space Roles Credential',
     claims: [
       {
