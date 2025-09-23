@@ -1,5 +1,6 @@
 import bodyParser from 'body-parser';
 import { app } from 'mu';
+import * as crypto from 'node:crypto';
 
 // Required to set up a suite instance with private key
 import Router from 'express-promise-router';
@@ -70,6 +71,7 @@ router.get('/issuer_metadata', async function (req, res) {
     credential_issuer: issuerUrl,
     authorization_servers: [`${issuerUrl}`], // so we also act as an authorization server, should be the default
     credential_endpoint: `${issuerUrl}/vc-issuer/credential`,
+    nonce_endpoint: `${issuerUrl}/vc-issuer/nonce`,
     display: [
       {
         name: 'Decide Data Space',
@@ -255,6 +257,15 @@ router.post('/token', async function (req, res) {
   });
 
   // TODO we may want to offer a nonce endpoint
+});
+
+router.post('/nonce', async function (req, res) {
+  // we just generate a random nonce for now, no need to store it server side as far as I can tell from the spec
+  const nonce = crypto.randomBytes(16).toString('hex');
+  res.set('Cache-Control', 'no-store');
+  res.send({
+    c_nonce: nonce,
+  });
 });
 
 router.post('/credential', async function (req, res) {
