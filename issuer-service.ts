@@ -109,6 +109,11 @@ export class VCIssuer {
       suite: this.suite,
       documentLoader: this.documentLoader,
     });
+
+    // normally you'd verify the presentation, but let's already verify the credential
+    const verificationResult = await this.verifyLdpCredential(signedVC);
+    console.log(verificationResult);
+
     return signedVC;
   }
 
@@ -119,7 +124,7 @@ export class VCIssuer {
   // for demo purposes, normally the verifier would do this
   // ignore ts for now as vc library does not have types support
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  async verifyCredential(signedVC: any) {
+  async verifyLdpCredential(signedVC: any) {
     const verificationResult = await vc.verifyCredential({
       credential: signedVC,
       suite: this.suite,

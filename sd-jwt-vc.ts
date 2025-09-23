@@ -92,8 +92,6 @@ function publicKeyDerEncode({ publicKeyBytes }) {
 }
 
 const createSignerVerifier = () => {
-  console.log(process.env.ISSUER_PRIVATE_KEY);
-
   const privateKey = Crypto.createPrivateKey({
     key: privateKeyDerEncode({
       privateKeyBytes: _privateKeyBuffer(process.env.ISSUER_PRIVATE_KEY),

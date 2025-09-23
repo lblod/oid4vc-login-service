@@ -44,13 +44,11 @@ router.get('/status', function (req, res) {
 });
 
 router.post('/issue-credential', async function (req, res) {
+  console.log('body', req.body);
   const holderDid = req.body.holderDid;
   const signedVC = await issuer.issueCredential(holderDid);
   console.log(JSON.stringify(signedVC, null, 2));
 
-  // normally you'd verify the presentation, but let's already verify the credential
-  const verificationResult = await issuer.verifyCredential(signedVC);
-  console.log(verificationResult);
   res.send(signedVC);
 });
 
