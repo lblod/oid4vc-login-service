@@ -33,9 +33,13 @@
     "@digitalbazaar/security-document-loader": "^3.0.1",
     "@digitalbazaar/vc": "^7.2.0",
     "@lblod/mu-auth-sudo": "^0.6.1",
+    "@sd-jwt/crypto-nodejs": "^0.15.0",
+    "@sd-jwt/sd-jwt-vc": "^0.15.1",
     "body-parser": "^2.2.0",
     "express-promise-router": "^4.1.1",
+    "jose": "^6.1.0",
     "jsonld": "^8.3.3",
-    "jsonld-document-loader": "^2.3.0"
+    "jsonld-document-loader": "^2.3.0",
+    "multiformats": "^13.4.1"
   }
 }

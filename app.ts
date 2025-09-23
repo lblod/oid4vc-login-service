@@ -31,8 +31,8 @@ issuer
     publicKey: process.env.ISSUER_PUBLIC_KEY as string,
     privateKey: process.env.ISSUER_PRIVATE_KEY as string,
   })
-  .catch(() => {
-    console.error('Error setting up issuer');
+  .catch((e) => {
+    console.error('Error setting up issuer', e);
     process.exit(1);
   });
 
@@ -77,7 +77,7 @@ router.get('/issuer_metadata', async function (req, res) {
         name: 'Decide Data Space',
         locale: 'en-US',
         logo: {
-          uri: `${issuerUrl}/logo.png`,
+          uri: `${issuerUrl}/assets/logo.png`,
           alt_text: 'the square decide logo',
         },
       },

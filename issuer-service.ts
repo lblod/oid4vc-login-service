@@ -3,25 +3,33 @@ import jsonld from 'jsonld';
 import * as vc from '@digitalbazaar/vc';
 
 // Required to set up a suite instance with private key
-import { Ed25519VerificationKey2020 } from '@digitalbazaar/ed25519-verification-key-2020';
-import { Ed25519Signature2020 } from '@digitalbazaar/ed25519-signature-2020';
-import { securityLoader } from '@digitalbazaar/security-document-loader';
+import * as didJwk from '@digitalbazaar/did-method-jwk';
 import * as didKey from '@digitalbazaar/did-method-key';
 import * as didWeb from '@digitalbazaar/did-method-web';
-import * as didJwk from '@digitalbazaar/did-method-jwk';
-import { randomUUID, randomInt, randomBytes } from 'crypto';
+import { Ed25519Signature2020 } from '@digitalbazaar/ed25519-signature-2020';
+import { Ed25519VerificationKey2020 } from '@digitalbazaar/ed25519-verification-key-2020';
+import { securityLoader } from '@digitalbazaar/security-document-loader';
 import { updateSudo } from '@lblod/mu-auth-sudo';
+import { randomBytes, randomUUID } from 'crypto';
 import {
   sparqlEscapeDateTime,
   sparqlEscapeString,
   sparqlEscapeUri,
   uuid,
 } from 'mu';
+import { SDJwtVCService } from './sd-jwt-vc';
 
 export class VCIssuer {
+  ready = false;
   suite;
+  keyPair;
   documentLoader: (url: string) => Promise<unknown>;
   issuerDid: string;
+  sdJwtService: SDJwtVCService;
+
+  get isReady() {
+    return this.ready && this.sdJwtService?.ready;
+  }
 
   async setup({
     issuerDid,
@@ -41,6 +49,8 @@ export class VCIssuer {
       publicKeyMultibase: publicKey,
       privateKeyMultibase: privateKey,
     });
+    this.sdJwtService = new SDJwtVCService();
+    await this.sdJwtService.setup();
 
     const loader = securityLoader();
     loader.setProtocolHandler({
@@ -64,12 +74,18 @@ export class VCIssuer {
 
     this.issuerDid = issuerDid;
     this.documentLoader = loader.build();
-
+    this.keyPair = keyPair;
     this.suite = new Ed25519Signature2020({ key: keyPair });
+    this.ready = true;
+  }
+
+  async issueCredential(holderDid: string) {
+    // TODO ldpvc has no support atm
+    return this.issueCredentialSdJwtVc(holderDid);
   }
 
   // for demo purposes for now, we will need to issue a credential containing the roles in the data space
-  async issueCredential(holderDid: string) {
+  async issueCredentialLdpVc(holderDid: string) {
     // Sample unsigned credential
     const credentialBase =
       process.env.CREDENTIAL_URI_BASE || 'http://localhost/credential/';
@@ -94,6 +110,10 @@ export class VCIssuer {
       documentLoader: this.documentLoader,
     });
     return signedVC;
+  }
+
+  async issueCredentialSdJwtVc(holderDid: string) {
+    return this.sdJwtService.buildCredential(holderDid);
   }
 
   // for demo purposes, normally the verifier would do this
