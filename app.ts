@@ -76,6 +76,7 @@ router.get('/issuer_metadata', async function (req, res) {
         locale: 'en-US',
         logo: {
           uri: `${issuerUrl}/assets/logo.png`,
+          url: `${issuerUrl}/assets/logo.png`,
           alt_text: 'the square decide logo',
         },
       },
@@ -85,8 +86,37 @@ router.get('/issuer_metadata', async function (req, res) {
       [`${process.env.CREDENTIAL_TYPE}_sd_jwt`]: {
         format: 'vc+sd-jwt', // latest spec actually says dc+sd-jwt
         scope: 'JWT_VC_DECIDE_ROLES',
-        credential_signing_alg_values_supported: ['ES256'],
+        credential_signing_alg_values_supported: ['EdDSA'], // may need to fall back to ES256?
         // cryptographic_binding_methods_supported: ['did:key', 'did:web'], we probably want to add this and require key binding, but for now lets try without
+
+        display: [
+          // repeated for older specs
+          {
+            name: 'Decide Roles Credential',
+            locale: 'en-US',
+            logo: {
+              uri: `${issuerUrl}/assets/logo.png`, // TODO this is super temporary and ugly, but the app crashes if it's not there
+              url: `${issuerUrl}/assets/logo.png`, // TODO this is super temporary and ugly, but the app crashes if it's not there
+              alt_text: 'the square decide logo',
+            },
+            description:
+              'A credential that holds the groups you have access to in Decide',
+            background_color: '#12107c',
+            text_color: '#FFFFFF',
+          },
+        ],
+        claims: [
+          // repeated for older specs
+          {
+            path: ['alumniOf'],
+            display: [
+              {
+                name: 'Degree',
+                locale: 'en-US',
+              },
+            ],
+          },
+        ],
         vct: `${process.env.ISSUER_URL}`, // TODO this should be properly resolvable see https://datatracker.ietf.org/doc/html/draft-ietf-oauth-sd-jwt-vc-10
         credential_metadata: {
           display: [
@@ -95,23 +125,13 @@ router.get('/issuer_metadata', async function (req, res) {
               locale: 'en-US',
               logo: {
                 uri: `${issuerUrl}/assets/logo.png`, // TODO this is super temporary and ugly, but the app crashes if it's not there
+                url: `${issuerUrl}/assets/logo.png`, // TODO this is super temporary and ugly, but the app crashes if it's not there
                 alt_text: 'the square decide logo',
               },
               description:
                 'A credential that holds the groups you have access to in Decide',
               background_color: '#12107c',
               text_color: '#FFFFFF',
-            },
-          ],
-          claims: [
-            {
-              path: ['alumniOf'],
-              display: [
-                {
-                  name: 'Degree',
-                  locale: 'en-US',
-                },
-              ],
             },
           ],
         },
