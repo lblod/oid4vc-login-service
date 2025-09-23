@@ -105,10 +105,9 @@ router.get('/issuer_metadata', async function (req, res) {
             text_color: '#FFFFFF',
           },
         ],
-        claims: [
+        claims: {
           // repeated for older specs
-          {
-            path: ['alumniOf'],
+          alumniOf: {
             display: [
               {
                 name: 'Degree',
@@ -116,7 +115,8 @@ router.get('/issuer_metadata', async function (req, res) {
               },
             ],
           },
-        ],
+        },
+
         vct: `${process.env.ISSUER_URL}`, // TODO this should be properly resolvable see https://datatracker.ietf.org/doc/html/draft-ietf-oauth-sd-jwt-vc-10
         credential_metadata: {
           display: [
@@ -132,6 +132,17 @@ router.get('/issuer_metadata', async function (req, res) {
                 'A credential that holds the groups you have access to in Decide',
               background_color: '#12107c',
               text_color: '#FFFFFF',
+            },
+          ],
+          claims: [
+            {
+              path: ['alumniOf'],
+              display: [
+                {
+                  name: 'Degree',
+                  locale: 'en-US',
+                },
+              ],
             },
           ],
         },
