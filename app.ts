@@ -89,8 +89,12 @@ router.get('/issuer_metadata', async function (req, res) {
         format: 'vc+sd-jwt', // latest spec actually says dc+sd-jwt
         scope: 'JWT_VC_DECIDE_ROLES',
         credential_signing_alg_values_supported: ['EdDSA'], // may need to fall back to ES256?
-        // cryptographic_binding_methods_supported: ['did:key', 'did:web'], we probably want to add this and require key binding, but for now lets try without
-
+        cryptographic_binding_methods_supported: ['jwk', 'did:key', 'did:web'],
+        proof_types_supported: {
+          jwt: {
+            proof_signing_alg_values_supported: ['ES256'],
+          },
+        },
         display: [
           // repeated for older specs
           {
@@ -109,17 +113,21 @@ router.get('/issuer_metadata', async function (req, res) {
         ],
         claims: {
           // repeated for older specs
-          alumniOf: {
-            display: [
-              {
-                name: 'Degree',
-                locale: 'en-US',
-              },
-            ],
+          decideGroups: {
+            en: {
+              name: 'Decide Groups',
+              locale: 'en-US',
+            },
+          },
+          id: {
+            en: {
+              name: 'id',
+              locale: 'en-US',
+            },
           },
         },
 
-        vct: `${process.env.ISSUER_URL}`, // TODO this should be properly resolvable see https://datatracker.ietf.org/doc/html/draft-ietf-oauth-sd-jwt-vc-10
+        vct: `${process.env.ISSUER_URL}`,
         credential_metadata: {
           display: [
             {
@@ -138,51 +146,19 @@ router.get('/issuer_metadata', async function (req, res) {
           ],
           claims: [
             {
-              path: ['alumniOf'],
+              path: ['decideGroups'],
               display: [
                 {
-                  name: 'Degree',
+                  name: 'Decide Groups',
                   locale: 'en-US',
                 },
               ],
             },
-          ],
-        },
-      },
-      // note: not a single wallet found that supports ldp_vc and works
-      [`${process.env.CREDENTIAL_TYPE}`]: {
-        format: 'ldp_vc',
-        scope: 'JWT_VC_DECIDE_ROLES',
-        credential_signing_alg_values_supported: ['EdDSA'], // may need to fall back to ES256 for sphereon wallet TODO
-        // cryptographic_binding_methods_supported: ['did:key', 'did:web'], we probably want to add this and require key binding, but for now lets try without
-        credential_definition: {
-          '@context': [
-            'https://www.w3.org/2018/credentials/v1',
-            'https://www.w3.org/2018/credentials/examples/v1', // TODO we want to change this to our true context
-          ],
-          type: ['VerifiableCredential', 'AlumniCredential'],
-        },
-        credential_metadata: {
-          display: [
             {
-              name: 'Decide Roles Credential',
-              locale: 'en-US',
-              logo: {
-                uri: `${issuerUrl}/assets/logo.png`, // TODO this is super temporary and ugly, but the app crashes if it's not there
-                alt_text: 'the square decide logo',
-              },
-              description:
-                'A credential that holds the groups you have access to in Decide',
-              background_color: '#12107c',
-              text_color: '#FFFFFF',
-            },
-          ],
-          claims: [
-            {
-              path: ['credentialSubject', 'alumniOf'],
+              path: ['id'],
               display: [
                 {
-                  name: 'Degree',
+                  name: 'ID',
                   locale: 'en-US',
                 },
               ],

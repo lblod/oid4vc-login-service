@@ -147,38 +147,13 @@ export class SDJwtVCService {
   async buildCredential(ownerDid: string) {
     // Issuer Define the claims object with the user's information
     const claims = {
-      firstname: 'John',
-      lastname: 'Doe',
-      ssn: '123-45-6789',
+      decideGroups: 'Foo,Bar,Baz',
       id: ownerDid,
-      data: {
-        firstname: 'John',
-        lastname: 'Doe',
-        ssn: '123-45-6789',
-        list: [{ r: '1' }, 'b', 'c'],
-      },
-      data2: {
-        hi: 'bye',
-      },
     };
 
     // Issuer Define the disclosure frame to specify which claims can be disclosed
     const disclosureFrame: DisclosureFrame<typeof claims> = {
-      _sd: ['firstname', 'id', 'data2'],
-      data: {
-        _sd: ['list'],
-        _sd_decoy: 2,
-        list: {
-          _sd: [0, 2],
-          _sd_decoy: 1,
-          0: {
-            _sd: ['r'],
-          },
-        },
-      },
-      data2: {
-        _sd: ['hi'],
-      },
+      _sd: ['decideGroups', 'id'],
     };
 
     // Issue a signed JWT credential with the specified claims and disclosures
@@ -187,7 +162,7 @@ export class SDJwtVCService {
       {
         iss: process.env.ISSUER_URL,
         iat: Math.floor(Date.now() / 1000),
-        vct: 'ExampleCredentials',
+        vct: process.env.ISSUER_URL,
         ...claims,
       },
       disclosureFrame,
