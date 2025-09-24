@@ -27,6 +27,11 @@ const issuerRouter = Router();
 // with the baseUrl you configure in the modules below.
 app.use('/oid4vci', issuerRouter);
 
+issuerRouter.use('/', function (req, res, next) {
+  res.type('application/json');
+  next();
+});
+
 export const hack = {
   credentialOffer: null,
 };
