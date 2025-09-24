@@ -225,3 +225,17 @@ function logResponseBody(req, res, next) {
 }
 
 issuerRouter.use(logResponseBody);
+
+issuerRouter.get('/authorization_metadata', async function (req, res) {
+  const issuerUrl = `${process.env.ISSUER_URL as string}/oid4vci/foobar`;
+  res.send({
+    issuer: issuerUrl,
+    scopes_supported: ['JWT_VC_DECIDE_ROLES'],
+    authorization_endpoint: `${issuerUrl}/authorize`, // we don't have this yet, we don't have grant types that require it
+    token_endpoint: `${issuerUrl}/token`,
+    response_types_supported: ['code'],
+    grant_types_supported: [
+      'urn:ietf:params:oauth:grant-type:pre-authorized_code',
+    ],
+  });
+});
