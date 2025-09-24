@@ -27,6 +27,10 @@ const issuerRouter = Router();
 // with the baseUrl you configure in the modules below.
 app.use('/oid4vci', issuerRouter);
 
+export const hack = {
+  credentialOffer: null,
+};
+
 const issuer = new Agent({
   config: {
     label: 'Decide VC Issuer Service',
@@ -42,7 +46,7 @@ const issuer = new Agent({
     }),
 
     openId4VcIssuer: new OpenId4VcIssuerModule({
-      baseUrl: 'http://127.0.0.1:8081/oid4vci',
+      baseUrl: `${process.env.ISSUER_URL}/oid4vci`,
 
       // If no router is passed, one will be created.
       // you still have to register the router on your express server
@@ -83,7 +87,7 @@ const issuer = new Agent({
             }
 
             // We only support AcmeCorpEmployee in this example, but you can support any type
-            if (firstSupported.vct !== 'AcmeCorpEmployee') {
+            if (firstSupported.vct !== process.env.ISSUER_URL) {
               throw new Error('Only AcmeCorpEmployee is supported');
             }
 
@@ -144,8 +148,8 @@ export async function setup() {
     credentialsSupported: [
       {
         format: 'vc+sd-jwt',
-        vct: 'AcmeCorpEmployee',
-        id: 'AcmeCorpEmployee',
+        vct: process.env.ISSUER_URL,
+        id: process.env.ISSUER_URL,
         cryptographic_binding_methods_supported: ['did:key'],
         cryptographic_suites_supported: [JwaSignatureAlgorithm.ES256],
       },
@@ -168,7 +172,7 @@ export async function setup() {
     await issuer.modules.openId4VcIssuer.createCredentialOffer({
       issuerId: openid4vcIssuer.issuerId,
       // values must match the `id` of the credential supported by the issuer
-      offeredCredentials: ['AcmeCorpEmployee'],
+      offeredCredentials: [process.env.ISSUER_URL],
 
       // Only pre-authorized code flow is supported
       preAuthorizedCodeFlowConfig: {
@@ -180,6 +184,7 @@ export async function setup() {
         someKey: 'someValue',
       },
     });
+  hack.credentialOffer = credentialOffer;
 
   // Listen and react to changes in the issuance session
   issuer.events.on<OpenId4VcIssuanceSessionStateChangedEvent>(

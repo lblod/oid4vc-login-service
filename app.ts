@@ -5,7 +5,7 @@ import * as crypto from 'node:crypto';
 // Required to set up a suite instance with private key
 import Router from 'express-promise-router';
 import { VCIssuer } from './issuer-service';
-import { setup } from './credoverifier';
+import { hack, setup } from './credoverifier';
 
 const router = Router();
 app.use(
@@ -58,8 +58,9 @@ router.get('/build-credential-offer-uri', async function (req, res) {
   const sessionUri = req.get('mu-session-id') as string;
   const { pin, credentialOfferUri } =
     await issuer.buildCredentialOfferUri(sessionUri);
+
   res.send({
-    credentialOfferUri,
+    credentialOfferUri: hack.credentialOffer,
     pin: pin,
   });
 });
@@ -188,11 +189,16 @@ router.get('/authorization_metadata', async function (req, res) {
 router.get('/vct', function (req, res) {
   res.send({
     vct: `${process.env.ISSUER_URL}`,
-    name: 'Decide Data Space Roles Credential',
+    name: 'ACMECorpEmployee',
     claims: [
       {
-        path: 'alumniOf',
-        display: { name: 'Degree', locale: 'en-US' },
+        path: 'firstName',
+        display: { name: 'First Name', locale: 'en-US' },
+        sd: 'allowed',
+      },
+      {
+        path: 'lastName',
+        display: { name: 'Last Name', locale: 'en-US' },
         sd: 'allowed',
       },
     ],
@@ -200,11 +206,14 @@ router.get('/vct', function (req, res) {
       $schema: 'https://json-schema.org/draft/2020-12/schema',
       type: 'object',
       properties: {
-        alumniOf: {
+        firstName: {
+          type: 'string',
+        },
+        lastName: {
           type: 'string',
         },
       },
-      required: ['alumniOf'],
+      required: ['firstName', 'lastName'],
     },
   });
 });
