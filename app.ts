@@ -5,6 +5,7 @@ import * as crypto from 'node:crypto';
 // Required to set up a suite instance with private key
 import Router from 'express-promise-router';
 import { VCIssuer } from './issuer-service';
+import { setup } from './credoverifier';
 
 const router = Router();
 app.use(
@@ -290,4 +291,9 @@ router.post('/credential', async function (req, res) {
     credential: signedVC, // for old specs
     format: 'vc+sd-jwt', // for old specs
   });
+});
+
+setup().catch((err) => {
+  console.error(err);
+  process.exit(1);
 });
