@@ -285,5 +285,9 @@ router.post('/credential', async function (req, res) {
   }
   const signedVC = await issuer.issueCredential(did);
   // credential because our wallet follows an old version of the spec
-  res.send({ credentials: [{ credential: signedVC }], credential: signedVC });
+  res.send({
+    credentials: [{ credential: signedVC }],
+    credential: signedVC, // for old specs
+    format: 'vc+sd-jwt', // for old specs
+  });
 });
