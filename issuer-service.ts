@@ -303,4 +303,9 @@ export class VCIssuer {
         }
       }`);
   }
+
+  async generateNonce() {
+    // we just generate a random nonce for now, we should store and verify it to protect against replay attacks
+    return randomBytes(16).toString('hex');
+  }
 }

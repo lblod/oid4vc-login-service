@@ -190,8 +190,13 @@ router.get('/vct', function (req, res) {
     name: 'Decide Data Space Roles Credential',
     claims: [
       {
-        path: 'alumniOf',
-        display: { name: 'Degree', locale: 'en-US' },
+        path: 'decideGroups',
+        display: { name: 'Groups', locale: 'en-US' },
+        sd: 'allowed',
+      },
+      {
+        path: 'id',
+        display: { name: 'ID', locale: 'en-US' },
         sd: 'allowed',
       },
     ],
@@ -199,11 +204,14 @@ router.get('/vct', function (req, res) {
       $schema: 'https://json-schema.org/draft/2020-12/schema',
       type: 'object',
       properties: {
-        alumniOf: {
+        decideGroups: {
+          type: 'string',
+        },
+        id: {
           type: 'string',
         },
       },
-      required: ['alumniOf'],
+      required: ['decideGroups', 'id'],
     },
   });
 });
@@ -236,8 +244,7 @@ router.post('/token', async function (req, res) {
 });
 
 router.post('/nonce', async function (req, res) {
-  // we just generate a random nonce for now, no need to store it server side as far as I can tell from the spec
-  const nonce = crypto.randomBytes(16).toString('hex');
+  const nonce = await issuer.generateNonce();
   res.set('Cache-Control', 'no-store');
   res.send({
     c_nonce: nonce,
@@ -286,8 +293,10 @@ router.post('/credential', async function (req, res) {
   const signedVC = await issuer.issueCredential(did);
   // credential because our wallet follows an old version of the spec
   res.send({
-    credentials: [{ credential: signedVC }],
+    //credentials: [{ credential: signedVC }], // commented as paradym fails with this property present T_T, it is correct according to the spec though
     credential: signedVC, // for old specs
+    c_nonce: await issuer.generateNonce(), // for old specs
+    c_nonce_expires_in: 300, // yeah... it really doesn't, for old specs
     format: 'vc+sd-jwt', // for old specs
   });
 });
