@@ -160,7 +160,7 @@ export class SDJwtVCService {
     // Return a Encoded SD JWT. Issuer send the credential to the holder
     const credential = await this.sdjwt.issue(
       {
-        iss: process.env.ISSUER_URL,
+        iss: process.env.ISSUER_DID,
         iat: Math.floor(Date.now() / 1000),
         vct: process.env.ISSUER_URL,
         ...claims,
@@ -176,6 +176,8 @@ export class SDJwtVCService {
 
     // You can decode the SD JWT to get the payload and the disclosures
     const sdJwtToken = await this.sdjwt.decode(credential);
+    console.log('jwt:', sdJwtToken.jwt);
+    console.log('kbJwt:', sdJwtToken.kbJwt);
 
     // You can get the keys of the claims from the decoded SD JWT
     const keys = await sdJwtToken.keys(digest);
