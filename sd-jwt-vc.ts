@@ -166,6 +166,11 @@ export class SDJwtVCService {
         ...claims,
       },
       disclosureFrame,
+      {
+        header: {
+          kid: process.env.ISSUER_KEY_ID as string,
+        },
+      },
     );
     console.log('encodedJwt:', credential);
 
