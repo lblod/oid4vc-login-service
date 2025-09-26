@@ -11,7 +11,7 @@ export class VCVerifier {
 
   async buildAuthorizationRequestUri(session: string) {
     const clientId = `decentralized_identifier:${process.env.ISSUER_DID}`;
-    const requestUri = `${process.env.ISSUER_URL}/authorization-request`;
+    const requestUri = `${process.env.ISSUER_URL}/vc-issuer/authorization-request`; // TODO change to verifier? we're both atm
     const authorizationRequestUri = `openid4vp://?request_uri=${encodeURIComponent(requestUri)}&client_id=${encodeURIComponent(clientId)}`;
 
     return {
