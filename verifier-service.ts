@@ -24,7 +24,9 @@ export class VCVerifier {
     wallet_metadata: string,
     wallet_nonce: string,
   ) {
-    const walletMetadata = JSON.parse(wallet_metadata);
+    const walletMetadata = wallet_metadata
+      ? JSON.parse(wallet_metadata)
+      : undefined;
     const walletNonce = wallet_nonce;
 
     const dcqlQuery = {
@@ -45,17 +47,20 @@ export class VCVerifier {
     }; // TODO define transaction data if needed
     const clientId = `decentralized_identifier:${process.env.ISSUER_DID}`;
     const nonce = Crypto.randomBytes(16).toString('base64url');
-    // request is jwt signed with our private key
-    const request = await new jose.SignJWT({
+    const payload = {
       iss: process.env.ISSUER_DID, // TODO separate issuer did?
       aud: 'https://self-issued.me/v2',
       response_type: 'vp_token',
       client_id: clientId,
       dcql_query: dcqlQuery,
       transaction_data: transactionData,
-      wallet_nonce: walletNonce,
       nonce,
-    })
+    };
+    if (walletNonce) {
+      payload['wallet_nonce'] = walletNonce;
+    }
+    // request is jwt signed with our private key
+    const request = await new jose.SignJWT(payload)
       .setProtectedHeader({ alg: 'EdDSA' })
       .sign(getPrivateKeyAsCryptoKey()); // TODO cache?
 
