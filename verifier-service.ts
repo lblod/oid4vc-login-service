@@ -40,6 +40,13 @@ export class VCVerifier {
           claims: [{ path: ['decideGroups'] }, { path: ['id'] }],
         },
       ],
+      credential_sets: [
+        {
+          options: [[`${process.env.ISSUER_URL}`]],
+          purpose:
+            'We require these credentials to verify your decide group memberships.',
+        },
+      ],
     };
     const transactionData = {
       type: 'DecideVerifiablePresentationRequest',
@@ -48,20 +55,26 @@ export class VCVerifier {
     const clientId = `decentralized_identifier:${process.env.ISSUER_DID}`;
     const nonce = Crypto.randomBytes(16).toString('base64url');
     const payload = {
-      iss: process.env.ISSUER_DID, // TODO separate issuer did?
-      aud: 'https://self-issued.me/v2',
       response_type: 'vp_token',
       client_id: clientId,
-      dcql_query: dcqlQuery,
-      transaction_data: transactionData,
+      response_uri: `${process.env.ISSUER_URL}/vc-issuer/presentation-response`, // TODO change to verifier? we're both atm
+      response_mode: 'direct_post.jwt',
       nonce,
+      dcql_query: dcqlQuery,
+      aud: 'https://self-issued.me/v2',
+      iat: Math.floor(Date.now() / 1000),
+      exp: Math.floor(Date.now() / 1000) + 600, // 10 minutes
+      state: session, // use the session as state so we can verify it on the response
     };
     if (walletNonce) {
       payload['wallet_nonce'] = walletNonce;
     }
     // request is jwt signed with our private key
     const request = await new jose.SignJWT(payload)
-      .setProtectedHeader({ alg: 'EdDSA' })
+      .setProtectedHeader({
+        alg: 'EdDSA',
+        iss: process.env.ISSUER_DID, // TODO separate issuer did?
+      })
       .sign(getPrivateKeyAsCryptoKey()); // TODO cache?
 
     return request;

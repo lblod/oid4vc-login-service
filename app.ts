@@ -333,3 +333,9 @@ const handleAuthorizationRequest = async function (req, res) {
 
 router.post('/authorization-request', handleAuthorizationRequest);
 router.get('/authorization-request', handleAuthorizationRequest); // older specs use GET
+
+router.post('/presentation-response', async function (req, res) {
+  console.log('body', req.body);
+  // TODO
+  res.send({ status: 'ok' });
+});
