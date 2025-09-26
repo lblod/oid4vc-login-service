@@ -10,7 +10,8 @@ export class VCVerifier {
   }
 
   async buildAuthorizationRequestUri(session: string) {
-    const clientId = `decentralized_identifier:${process.env.ISSUER_DID}`;
+    //const clientId = `decentralized_identifier:${process.env.ISSUER_DID}`; // TODO older spec doesn't use a prefix and using it breaks paradym
+    const clientId = `${process.env.ISSUER_DID}`;
     const requestUri = `${process.env.ISSUER_URL}/vc-issuer/authorization-request`; // TODO change to verifier? we're both atm
     const authorizationRequestUri = `openid4vp://?request_uri=${encodeURIComponent(requestUri)}&client_id=${encodeURIComponent(clientId)}`;
 
@@ -52,7 +53,8 @@ export class VCVerifier {
       type: 'DecideVerifiablePresentationRequest',
       credential_ids: [`${process.env.ISSUER_URL}`], // TODO still using issuer url as credential id, should probably change this.
     }; // TODO define transaction data if needed
-    const clientId = `decentralized_identifier:${process.env.ISSUER_DID}`;
+    //const clientId = `decentralized_identifier:${process.env.ISSUER_DID}`; // TODO older spec doesn't use a prefix and using it breaks paradym
+    const clientId = `${process.env.ISSUER_DID}`;
     const nonce = Crypto.randomBytes(16).toString('base64url');
     const payload = {
       response_type: 'vp_token',
@@ -73,6 +75,7 @@ export class VCVerifier {
     const request = await new jose.SignJWT(payload)
       .setProtectedHeader({
         alg: 'EdDSA',
+        kid: process.env.ISSUER_KEY_ID as string,
         iss: process.env.ISSUER_DID, // TODO separate issuer did?
       })
       .sign(getPrivateKeyAsCryptoKey()); // TODO cache?
