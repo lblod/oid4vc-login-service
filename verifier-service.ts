@@ -77,6 +77,7 @@ export class VCVerifier {
         alg: 'EdDSA',
         kid: process.env.ISSUER_KEY_ID as string,
         iss: process.env.ISSUER_DID, // TODO separate issuer did?
+        typ: 'oauth-authz-req+jwt',
       })
       .sign(getPrivateKeyAsCryptoKey()); // TODO cache?
 
