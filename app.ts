@@ -316,7 +316,7 @@ router.get('/build-authorization-request-uri', async function (req, res) {
   });
 });
 
-router.post('/authorization-request', async function (req, res) {
+const handleAuthorizationRequest = async function (req, res) {
   console.log('body', req.body);
   console.log('query params', req.query);
   const { wallet_metadata, wallet_nonce } = req.body;
@@ -329,4 +329,7 @@ router.post('/authorization-request', async function (req, res) {
   console.log(JSON.stringify(authorizationRequestData, null, 2));
   res.type('application/oauth-authz-req+jwt');
   res.send(authorizationRequestData);
-});
+};
+
+router.post('/authorization-request', handleAuthorizationRequest);
+router.get('/authorization-request', handleAuthorizationRequest); // older specs use GET
