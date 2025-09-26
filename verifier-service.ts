@@ -33,7 +33,7 @@ export class VCVerifier {
     const dcqlQuery = {
       credentials: [
         {
-          id: `${process.env.ISSUER_URL}`,
+          id: '0',
           format: 'dc+sd-jwt',
           meta: {
             vct_values: [process.env.ISSUER_URL],
@@ -43,7 +43,7 @@ export class VCVerifier {
       ],
       credential_sets: [
         {
-          options: [[`${process.env.ISSUER_URL}`]],
+          options: [['0']],
           purpose:
             'We require these credentials to verify your decide group memberships.',
         },
