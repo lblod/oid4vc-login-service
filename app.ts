@@ -1,10 +1,10 @@
 import bodyParser from 'body-parser';
 import { app } from 'mu';
-import * as crypto from 'node:crypto';
 
 // Required to set up a suite instance with private key
 import Router from 'express-promise-router';
 import { VCIssuer } from './issuer-service';
+import { VCVerifier } from './verifier-service';
 
 const router = Router();
 app.use(
@@ -25,6 +25,8 @@ app.use('/', function (req, res, next) {
 app.use(router);
 
 const issuer = new VCIssuer();
+const verifier = new VCVerifier();
+
 issuer
   .setup({
     issuerDid: process.env.ISSUER_DID as string,
@@ -36,6 +38,10 @@ issuer
     console.error('Error setting up issuer', e);
     process.exit(1);
   });
+verifier.setup().catch((e) => {
+  console.error('Error setting up verifier', e);
+  process.exit(1);
+});
 
 router.get('/status', function (req, res) {
   res.send({
@@ -299,4 +305,28 @@ router.post('/credential', async function (req, res) {
     c_nonce_expires_in: 300, // yeah... it really doesn't, for old specs
     format: 'vc+sd-jwt', // for old specs
   });
+});
+
+router.get('/build-authorization-request-uri', async function (req, res) {
+  const session = req.get('mu-session-id') as string;
+  const { authorizationRequestUri } =
+    await verifier.buildAuthorizationRequestUri(session);
+  res.send({
+    authorizationRequestUri,
+  });
+});
+
+router.post('/authorization-request', async function (req, res) {
+  console.log('body', req.body);
+  console.log('query params', req.query);
+  const { wallet_metadata, wallet_nonce } = req.body;
+  const session = req.get('original-session') as string;
+  const authorizationRequestData = await verifier.buildAuthorizationRequestData(
+    session,
+    wallet_metadata,
+    wallet_nonce,
+  );
+  console.log(JSON.stringify(authorizationRequestData, null, 2));
+  res.type('application/oauth-authz-req+jwt');
+  res.send(authorizationRequestData);
 });
