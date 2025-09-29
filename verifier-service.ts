@@ -77,7 +77,8 @@ export class VCVerifier {
         jwks: {
           keys: [ephemeralKey.jwk],
         },
-        authorization_signed_response_alg: 'ECDH-ES',
+        authorization_encrypted_response_alg: 'ECDH-ES',
+        authorization_encrypted_response_enc: 'A128GCM',
         vp_formats_supported: {
           'dc+sd-jwt': {
             'sd-jwt_alg_values': ['ES256', 'EdDSA'],
