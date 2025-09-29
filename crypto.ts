@@ -111,6 +111,15 @@ export function getPublicKeyAsCryptoKey() {
   });
 }
 
+export function getPublicKeyAsJwk() {
+  const publicKeyBytes = getPublicKeyBuffer(process.env.ISSUER_PUBLIC_KEY);
+  return {
+    kty: 'OKP',
+    crv: 'Ed25519',
+    x: Buffer.from(publicKeyBytes).toString('base64url'),
+  };
+}
+
 const webResolver = getWebResolver();
 const keyResolver = getKeyResolver();
 

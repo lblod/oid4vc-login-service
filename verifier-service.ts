@@ -1,5 +1,9 @@
 import * as Crypto from 'node:crypto';
-import { getPrivateKeyAsCryptoKey, getPublicKeyAsCryptoKey } from './crypto';
+import {
+  getPrivateKeyAsCryptoKey,
+  getPublicKeyAsCryptoKey,
+  getPublicKeyAsJwk,
+} from './crypto';
 import * as jose from 'jose';
 import { encode } from 'node:punycode';
 
@@ -68,6 +72,9 @@ export class VCVerifier {
       exp: Math.floor(Date.now() / 1000) + 600, // 10 minutes
       state: session, // use the session as state so we can verify it on the response
       client_metadata: {
+        jwks: {
+          keys: [getPublicKeyAsJwk()],
+        },
         vp_formats_supported: {
           'dc+sd-jwt': {
             'sd-jwt_alg_values': ['ES256', 'EdDSA'],
