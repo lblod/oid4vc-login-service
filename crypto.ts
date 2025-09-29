@@ -132,3 +132,11 @@ export async function resolveDid(did: string) {
   const result = await didResolver.resolve(did);
   return result;
 }
+
+export function createEphemeralKeyPair() {
+  const { publicKey, privateKey } = Crypto.generateKeyPairSync('ec', {
+    namedCurve: 'P-256',
+  });
+  const jwk = publicKey.export({ format: 'jwk' });
+  return { publicKey, privateKey, jwk };
+}

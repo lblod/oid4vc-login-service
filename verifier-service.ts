@@ -1,5 +1,6 @@
 import * as Crypto from 'node:crypto';
 import {
+  createEphemeralKeyPair,
   getPrivateKeyAsCryptoKey,
   getPublicKeyAsCryptoKey,
   getPublicKeyAsJwk,
@@ -60,6 +61,7 @@ export class VCVerifier {
     //const clientId = `decentralized_identifier:${process.env.ISSUER_DID}`; // TODO older spec doesn't use a prefix and using it breaks paradym
     const clientId = `${process.env.ISSUER_DID}`;
     const nonce = Crypto.randomBytes(16).toString('base64url');
+    const ephemeralKey = createEphemeralKeyPair(); // TODO we need to store this
     const payload = {
       response_type: 'vp_token',
       client_id: clientId,
@@ -73,9 +75,9 @@ export class VCVerifier {
       state: session, // use the session as state so we can verify it on the response
       client_metadata: {
         jwks: {
-          keys: [getPublicKeyAsJwk()],
+          keys: [ephemeralKey.jwk],
         },
-        authorization_signed_response_alg: 'ES256',
+        authorization_signed_response_alg: 'ECDH-ES',
         vp_formats_supported: {
           'dc+sd-jwt': {
             'sd-jwt_alg_values': ['ES256', 'EdDSA'],
