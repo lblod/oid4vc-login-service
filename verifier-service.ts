@@ -67,6 +67,14 @@ export class VCVerifier {
       iat: Math.floor(Date.now() / 1000),
       exp: Math.floor(Date.now() / 1000) + 600, // 10 minutes
       state: session, // use the session as state so we can verify it on the response
+      client_metadata: {
+        vp_formats_supported: {
+          'dc+sd-jwt': {
+            'sd-jwt_alg_values': ['ES256', 'EdDSA'],
+            'kb-jwt_alg_values': ['ES256', 'EdDSA'],
+          },
+        },
+      },
     };
     if (walletNonce) {
       payload['wallet_nonce'] = walletNonce;
