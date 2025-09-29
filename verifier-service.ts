@@ -75,7 +75,7 @@ export class VCVerifier {
         jwks: {
           keys: [getPublicKeyAsJwk()],
         },
-        authorization_signed_response_alg: 'RS256',
+        authorization_signed_response_alg: 'ES256',
         vp_formats_supported: {
           'dc+sd-jwt': {
             'sd-jwt_alg_values': ['ES256', 'EdDSA'],
