@@ -1,4 +1,5 @@
 import jsonld from 'jsonld';
+import * as jose from 'jose';
 
 import * as vc from '@digitalbazaar/vc';
 
@@ -312,7 +313,7 @@ export class VCIssuer {
   }
 
   async validateProofAndGetHolderDid(jwt: string) {
-    const [jwtHeader, _, jwtSignature] = jwt.split('.');
+    const [jwtHeader] = jwt.split('.');
     const decodedJwtHeader = JSON.parse(atob(jwtHeader));
     // todo we should validate the proof, but for now let's trust it
     const did = decodedJwtHeader.kid;
@@ -320,32 +321,27 @@ export class VCIssuer {
       throw new Error('invalid_proof');
     }
     // validate signature:
-    const result = await resolveDid(did);
+    const result = await resolveDid(did).catch((e) => {
+      console.error('failed to resolve did:', e);
+      return null;
+    });
     if (!result || !result.didDocument) {
       throw new Error('invalid_proof');
     }
     // validate signature:
-    const isValid = await this.verifyJwtSignature(
+    await this.verifyJwtSignature(
       decodedJwtHeader,
-      jwtSignature,
       jwt,
       result.didDocument,
-    );
-    if (!isValid) {
+    ).catch((e) => {
+      console.error('failed to verify signature:', e);
       throw new Error('invalid_proof');
-    }
+    });
 
     return did;
   }
 
-  async verifyJwtSignature(
-    decodedJwtHeader,
-    jwtSignature: string,
-    originalJwt: string,
-    didDocument,
-  ) {
-    const signature = Buffer.from(jwtSignature, 'base64url');
-
+  async verifyJwtSignature(decodedJwtHeader, originalJwt: string, didDocument) {
     if (!didDocument.verificationMethod) {
       throw new Error('No verification method found in DID document');
     }
@@ -366,22 +362,11 @@ export class VCIssuer {
     }
     // verify the signature
     const alg = decodedJwtHeader.alg;
-    if (alg !== publicKeyJwk.alg) {
-      throw new Error('Algorithm mismatch between JWT and JWK');
-    }
     // only EdDSA and ES256 for now
     if (alg !== 'EdDSA' && alg !== 'ES256') {
       throw new Error(`Unsupported algorithm: ${alg}`);
     }
-    // use node's crypto module to verify the signature
-    const verify = crypto.createVerify('SHA256');
-    verify.update(originalJwt.split('.').slice(0, 2).join('.'));
-    verify.end();
-    const keyObject = crypto.createPublicKey({
-      key: Buffer.from(JSON.stringify(publicKeyJwk), 'utf8'),
-      format: 'jwk',
-    });
-    const isValid = verify.verify(keyObject, signature);
-    return isValid;
+    const jwtKey = await jose.importJWK(publicKeyJwk, alg);
+    await jose.jwtVerify(originalJwt, jwtKey);
   }
 }

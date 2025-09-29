@@ -2,7 +2,7 @@ import { bases } from 'multiformats/basics';
 import * as Crypto from 'node:crypto';
 import { Resolver } from 'did-resolver';
 import { getResolver as getWebResolver } from 'web-did-resolver';
-import { getResolver as getKeyResolver } from '@cef-ebsi/key-did-resolver';
+import { getResolver as getKeyResolver } from '@sphereon/did-resolver-key';
 
 const MULTICODEC_ED25519_PUB_HEADER = new Uint8Array([0xed, 0x01]);
 const MULTICODEC_ED25519_PRIV_HEADER = new Uint8Array([0x80, 0x26]);
