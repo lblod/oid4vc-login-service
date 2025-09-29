@@ -289,13 +289,8 @@ router.post('/credential', async function (req, res) {
     res.status(400).send({ error: 'missing_proof' });
     return;
   }
-  const decodedJwt = JSON.parse(atob(jwt.split('.')[0]));
-  // todo we should validate the proof, but for now let's trust it
-  const did = decodedJwt.kid;
-  if (!did || !did.startsWith('did:')) {
-    res.status(400).send({ error: 'invalid_proof' });
-    return;
-  }
+  const did = await issuer.validateProofAndGetHolderDid(jwt);
+
   const signedVC = await issuer.issueCredential(did);
   // credential because our wallet follows an old version of the spec
   res.send({

@@ -40,6 +40,9 @@
     "jose": "^6.1.0",
     "jsonld": "^8.3.3",
     "jsonld-document-loader": "^2.3.0",
-    "multiformats": "^13.4.1"
+    "multiformats": "^13.4.1",
+    "did-resolver": "^4.1.0",
+    "web-did-resolver": "^2.0.30",
+    "@cef-ebsi/key-did-resolver": "^2.1.1"
   }
 }

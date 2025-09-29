@@ -1,6 +1,8 @@
 import { bases } from 'multiformats/basics';
 import * as Crypto from 'node:crypto';
-import * as jose from 'jose';
+import { Resolver } from 'did-resolver';
+import { getResolver as getWebResolver } from 'web-did-resolver';
+import { getResolver as getKeyResolver } from '@cef-ebsi/key-did-resolver';
 
 const MULTICODEC_ED25519_PUB_HEADER = new Uint8Array([0xed, 0x01]);
 const MULTICODEC_ED25519_PRIV_HEADER = new Uint8Array([0x80, 0x26]);
@@ -107,4 +109,17 @@ export function getPublicKeyAsCryptoKey() {
     format: 'der',
     type: 'spki',
   });
+}
+
+const webResolver = getWebResolver();
+const keyResolver = getKeyResolver();
+
+const didResolver = new Resolver({
+  ...webResolver,
+  ...keyResolver,
+});
+
+export async function resolveDid(did: string) {
+  const result = await didResolver.resolve(did);
+  return result;
 }

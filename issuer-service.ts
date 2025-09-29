@@ -11,6 +11,7 @@ import { Ed25519VerificationKey2020 } from '@digitalbazaar/ed25519-verification-
 import { securityLoader } from '@digitalbazaar/security-document-loader';
 import { updateSudo } from '@lblod/mu-auth-sudo';
 import { randomBytes, randomUUID } from 'crypto';
+import * as crypto from 'crypto';
 import {
   sparqlEscapeDateTime,
   sparqlEscapeString,
@@ -18,6 +19,7 @@ import {
   uuid,
 } from 'mu';
 import { SDJwtVCService } from './sd-jwt-vc';
+import { resolveDid } from './crypto';
 
 export class VCIssuer {
   ready = false;
@@ -307,5 +309,79 @@ export class VCIssuer {
   async generateNonce() {
     // we just generate a random nonce for now, we should store and verify it to protect against replay attacks
     return randomBytes(16).toString('hex');
+  }
+
+  async validateProofAndGetHolderDid(jwt: string) {
+    const [jwtHeader, _, jwtSignature] = jwt.split('.');
+    const decodedJwtHeader = JSON.parse(atob(jwtHeader));
+    // todo we should validate the proof, but for now let's trust it
+    const did = decodedJwtHeader.kid;
+    if (!did || !did.startsWith('did:')) {
+      throw new Error('invalid_proof');
+    }
+    // validate signature:
+    const result = await resolveDid(did);
+    if (!result || !result.didDocument) {
+      throw new Error('invalid_proof');
+    }
+    // validate signature:
+    const isValid = await this.verifyJwtSignature(
+      decodedJwtHeader,
+      jwtSignature,
+      jwt,
+      result.didDocument,
+    );
+    if (!isValid) {
+      throw new Error('invalid_proof');
+    }
+
+    return did;
+  }
+
+  async verifyJwtSignature(
+    decodedJwtHeader,
+    jwtSignature: string,
+    originalJwt: string,
+    didDocument,
+  ) {
+    const signature = Buffer.from(jwtSignature, 'base64url');
+
+    if (!didDocument.verificationMethod) {
+      throw new Error('No verification method found in DID document');
+    }
+    const verificationMethod = didDocument.verificationMethod.find(
+      (vm) => vm.id === decodedJwtHeader.kid,
+    );
+    if (!verificationMethod) {
+      throw new Error('No matching verification method found in DID document');
+    }
+    if (verificationMethod.type !== 'JsonWebKey2020') {
+      throw new Error(
+        `Unsupported verification method type: ${verificationMethod.type}`,
+      );
+    }
+    const publicKeyJwk = verificationMethod.publicKeyJwk;
+    if (!publicKeyJwk) {
+      throw new Error('No public key JWK found in verification method');
+    }
+    // verify the signature
+    const alg = decodedJwtHeader.alg;
+    if (alg !== publicKeyJwk.alg) {
+      throw new Error('Algorithm mismatch between JWT and JWK');
+    }
+    // only EdDSA and ES256 for now
+    if (alg !== 'EdDSA' && alg !== 'ES256') {
+      throw new Error(`Unsupported algorithm: ${alg}`);
+    }
+    // use node's crypto module to verify the signature
+    const verify = crypto.createVerify('SHA256');
+    verify.update(originalJwt.split('.').slice(0, 2).join('.'));
+    verify.end();
+    const keyObject = crypto.createPublicKey({
+      key: Buffer.from(JSON.stringify(publicKeyJwk), 'utf8'),
+      format: 'jwk',
+    });
+    const isValid = verify.verify(keyObject, signature);
+    return isValid;
   }
 }
