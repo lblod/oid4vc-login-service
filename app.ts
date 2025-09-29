@@ -289,9 +289,9 @@ router.post('/credential', async function (req, res) {
     res.status(400).send({ error: 'missing_proof' });
     return;
   }
-  const did = await issuer.validateProofAndGetHolderDid(jwt);
+  const { did, jwk } = await issuer.validateProofAndGetHolderDid(jwt);
 
-  const signedVC = await issuer.issueCredential(did);
+  const signedVC = await issuer.issueCredential(did, jwk);
   // credential because our wallet follows an old version of the spec
   res.send({
     //credentials: [{ credential: signedVC }], // commented as paradym fails with this property present T_T, it is correct according to the spec though

@@ -39,6 +39,9 @@ export class SDJwtVCService {
       signer,
       verifier,
       signAlg: 'EdDSA',
+      kbSigner: signer,
+      kbSignAlg: 'EdDSA',
+      kbVerifier: verifier,
       hasher: digest,
       hashAlg: 'sha-256',
       saltGenerator: generateSalt,
@@ -46,7 +49,7 @@ export class SDJwtVCService {
     this.ready = true;
   }
 
-  async buildCredential(ownerDid: string) {
+  async buildCredential(ownerDid: string, jwk) {
     // Issuer Define the claims object with the user's information
     const claims = {
       decideGroups: 'Foo,Bar,Baz',
@@ -65,6 +68,9 @@ export class SDJwtVCService {
         iss: process.env.ISSUER_DID,
         iat: Math.floor(Date.now() / 1000),
         vct: process.env.ISSUER_URL,
+        cnf: {
+          jwk,
+        },
         ...claims,
       },
       disclosureFrame,

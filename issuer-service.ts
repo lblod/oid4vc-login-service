@@ -82,9 +82,10 @@ export class VCIssuer {
     this.ready = true;
   }
 
-  async issueCredential(holderDid: string) {
+  // jwk is the public key that corresponds to the did (we already resolved it during verification, so let's not do so again)
+  async issueCredential(holderDid: string, jwk) {
     // TODO ldpvc has no support atm
-    return this.issueCredentialSdJwtVc(holderDid);
+    return this.issueCredentialSdJwtVc(holderDid, jwk);
   }
 
   // for demo purposes for now, we will need to issue a credential containing the roles in the data space
@@ -120,8 +121,8 @@ export class VCIssuer {
     return signedVC;
   }
 
-  async issueCredentialSdJwtVc(holderDid: string) {
-    return this.sdJwtService.buildCredential(holderDid);
+  async issueCredentialSdJwtVc(holderDid: string, jwk) {
+    return this.sdJwtService.buildCredential(holderDid, jwk);
   }
 
   // for demo purposes, normally the verifier would do this
@@ -329,7 +330,7 @@ export class VCIssuer {
       throw new Error('invalid_proof');
     }
     // validate signature:
-    await this.verifyJwtSignature(
+    const jwk = await this.verifyJwtSignature(
       decodedJwtHeader,
       jwt,
       result.didDocument,
@@ -338,7 +339,7 @@ export class VCIssuer {
       throw new Error('invalid_proof');
     });
 
-    return did;
+    return { did, jwk };
   }
 
   async verifyJwtSignature(decodedJwtHeader, originalJwt: string, didDocument) {
@@ -368,5 +369,6 @@ export class VCIssuer {
     }
     const jwtKey = await jose.importJWK(publicKeyJwk, alg);
     await jose.jwtVerify(originalJwt, jwtKey);
+    return publicKeyJwk;
   }
 }
