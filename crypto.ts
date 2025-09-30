@@ -141,6 +141,8 @@ export async function createEphemeralKeyPair() {
   });
   const jwk = await jose.exportJWK(publicKey);
   jwk.kid = 'eph'; // we can use a static kid as we only have one key per request, this is mostly for debugging
+  jwk.use = 'enc';
+  jwk.alg = 'ECDH-ES';
 
   return { publicKey, privateKey, jwk };
 }
