@@ -135,7 +135,9 @@ export async function resolveDid(did: string) {
 }
 
 export async function createEphemeralKeyPair() {
-  const { publicKey, privateKey } = await jose.generateKeyPair('ECDH-ES');
+  const { publicKey, privateKey } = await jose.generateKeyPair('ECDH-ES', {
+    extractable: true,
+  });
   const jwk = await jose.exportJWK(publicKey);
 
   return { publicKey, privateKey, jwk };
