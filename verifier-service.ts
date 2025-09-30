@@ -125,7 +125,7 @@ export class VCVerifier {
       INSERT DATA {
         GRAPH <http://mu.semte.ch/graphs/decide/verifier> {
           ${sparqlEscapeUri(uri)} a ext:AuthorizationRequest ;
-            ext:session ${sparqlEscapeString(session)} ;
+            ext:session ${sparqlEscapeUri(session)} ;
             ext:nonce ${sparqlEscapeString(nonce)} ;
             ext:ephemeralPrivateKey ${sparqlEscapeString(privateKey.export({ format: 'jwk' }).toString())} ;
             dct:created ${sparqlEscapeDateTime(new Date())} .

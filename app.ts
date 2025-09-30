@@ -316,7 +316,7 @@ const handleAuthorizationRequest = async function (req, res) {
   console.log('body', req.body);
   console.log('query params', req.query);
   const { wallet_metadata, wallet_nonce } = req.body;
-  const session = req.get('original-session') as string;
+  const session = req.get('mu-session-id') as string;
   const authorizationRequestData = await verifier.buildAuthorizationRequestData(
     session,
     wallet_metadata,
