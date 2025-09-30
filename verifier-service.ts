@@ -14,11 +14,14 @@ import {
   sparqlEscapeUri,
   uuid,
 } from 'mu';
+import { SDJwtVCService } from './sd-jwt-vc';
 
 export class VCVerifier {
   ready = false;
-  async setup() {
+  sdJwtService: SDJwtVCService;
+  async setup({ sdJwtService }: { sdJwtService: SDJwtVCService }) {
     this.ready = true;
+    this.sdJwtService = sdJwtService;
   }
 
   async buildAuthorizationRequestUri(session: string) {
@@ -45,7 +48,7 @@ export class VCVerifier {
     const dcqlQuery = {
       credentials: [
         {
-          id: '0',
+          id: 'decide_credential', // this string can be anything, it's just an identifier to refer to this credential set in the credential_sets section
           format: 'dc+sd-jwt',
           meta: {
             vct_values: [process.env.ISSUER_URL],
@@ -55,7 +58,7 @@ export class VCVerifier {
       ],
       credential_sets: [
         {
-          options: [['0']],
+          options: [['decide_credential']],
           purpose:
             'We require these credentials to verify your decide group memberships.',
         },
@@ -79,7 +82,6 @@ export class VCVerifier {
       aud: 'https://self-issued.me/v2',
       iat: Math.floor(Date.now() / 1000),
       exp: Math.floor(Date.now() / 1000) + 600, // 10 minutes
-      state: session, // use the session as state so we can verify it on the response
       client_metadata: {
         jwks: {
           // we could in theory add multiple jwks here to support multiple algorithms, no need now
@@ -127,12 +129,23 @@ export class VCVerifier {
         // we could verify the audience here if we wanted to be sure it's meant for us
       },
     );
+    const vp_token = payload.vp_token;
+    if (!vp_token?.decide_credential) {
+      throw new Error('No decide_credential in vp_token');
+    }
+    const credential = vp_token.decide_credential;
+
     console.log('payload:', payload);
     console.log('protectedHeader:', protectedHeader);
 
+    const verified = this.sdJwtService.validateAndDecodeCredential(
+      credential,
+      nonce,
+    );
+
     // TODO verify the vpToken contents, e.g. check the dcql_query is satisfied
 
-    return payload;
+    return verified;
   }
 
   async storeAuthorizationRequest(

@@ -6,6 +6,7 @@ import * as jose from 'jose';
 import Router from 'express-promise-router';
 import { VCIssuer } from './issuer-service';
 import { VCVerifier } from './verifier-service';
+import { SDJwtVCService } from './sd-jwt-vc';
 
 const router = Router();
 app.use(
@@ -27,20 +28,29 @@ app.use(router);
 
 const issuer = new VCIssuer();
 const verifier = new VCVerifier();
+const sdJwtService = new SDJwtVCService();
 
-issuer
-  .setup({
+async function setup() {
+  await sdJwtService.setup();
+  await issuer.setup({
+    sdJwtService: sdJwtService,
     issuerDid: process.env.ISSUER_DID as string,
     issuerKeyId: process.env.ISSUER_KEY_ID as string,
     publicKey: process.env.ISSUER_PUBLIC_KEY as string,
     privateKey: process.env.ISSUER_PRIVATE_KEY as string,
-  })
-  .catch((e) => {
-    console.error('Error setting up issuer', e);
-    process.exit(1);
   });
-verifier.setup().catch((e) => {
-  console.error('Error setting up verifier', e);
+
+  verifier
+    .setup({
+      sdJwtService: sdJwtService,
+    })
+    .catch((e) => {
+      console.error('Error setting up verifier', e);
+      process.exit(1);
+    });
+}
+setup().catch((e) => {
+  console.error('Error setting up services', e);
   process.exit(1);
 });
 

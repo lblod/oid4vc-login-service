@@ -39,11 +39,13 @@ export class VCIssuer {
     issuerKeyId,
     publicKey,
     privateKey,
+    sdJwtService,
   }: {
     issuerDid: string;
     issuerKeyId: string;
     publicKey: string;
     privateKey: string;
+    sdJwtService?: SDJwtVCService;
   }) {
     const keyPair = await Ed25519VerificationKey2020.from({
       type: 'Ed25519VerificationKey2020',
@@ -52,8 +54,7 @@ export class VCIssuer {
       publicKeyMultibase: publicKey,
       privateKeyMultibase: privateKey,
     });
-    this.sdJwtService = new SDJwtVCService();
-    await this.sdJwtService.setup();
+    this.sdJwtService = sdJwtService;
 
     const loader = securityLoader();
     loader.setProtocolHandler({

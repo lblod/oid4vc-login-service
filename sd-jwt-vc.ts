@@ -114,4 +114,13 @@ export class SDJwtVCService {
     );
     return credential;
   }
+
+  async validateAndDecodeCredential(credential: string, nonce: string) {
+    const verified = await this.sdjwt.verify(credential, {
+      requiredCLaimKeys: ['decideGroups', 'id'],
+      keyBindingNonce: nonce,
+    });
+    console.log('verified:', verified);
+    return verified;
+  }
 }
