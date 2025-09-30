@@ -3,6 +3,7 @@ import * as Crypto from 'node:crypto';
 import { Resolver } from 'did-resolver';
 import { getResolver as getWebResolver } from 'web-did-resolver';
 import { getResolver as getKeyResolver } from '@sphereon/did-resolver-key';
+import * as jose from 'jose';
 
 const MULTICODEC_ED25519_PUB_HEADER = new Uint8Array([0xed, 0x01]);
 const MULTICODEC_ED25519_PRIV_HEADER = new Uint8Array([0x80, 0x26]);
@@ -133,11 +134,9 @@ export async function resolveDid(did: string) {
   return result;
 }
 
-export function createEphemeralKeyPair() {
-  const { publicKey, privateKey } = Crypto.generateKeyPairSync('ec', {
-    namedCurve: 'P-256',
-  });
-  const jwk = publicKey.export({ format: 'jwk' });
-  console.log('private eph key:', privateKey.export({ format: 'jwk' }));
+export async function createEphemeralKeyPair() {
+  const { publicKey, privateKey } = await jose.generateKeyPair('ECDH-ES');
+  const jwk = await jose.exportJWK(publicKey);
+
   return { publicKey, privateKey, jwk };
 }

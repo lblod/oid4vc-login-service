@@ -68,7 +68,7 @@ export class VCVerifier {
     //const clientId = `decentralized_identifier:${process.env.ISSUER_DID}`; // TODO older spec doesn't use a prefix and using it breaks paradym
     const clientId = `${process.env.ISSUER_DID}`;
     const nonce = Crypto.randomBytes(16).toString('base64url');
-    const ephemeralKey = createEphemeralKeyPair(); // TODO we need to store this
+    const ephemeralKey = await createEphemeralKeyPair();
     const payload = {
       response_type: 'vp_token',
       client_id: clientId,
@@ -118,37 +118,26 @@ export class VCVerifier {
       throw new Error('No response field in presentation response');
     }
     const { nonce, privateKey } = await this.fetchAuthorizationRequest(session);
-    const { payload: vpTokenPayload } = await jose.jwtVerify(
-      response,
-      getPublicKeyAsCryptoKey(),
-      {
-        audience: process.env.ISSUER_DID,
-        issuer: 'https://self-issued.me/v2',
-      },
-    );
-    if (vpTokenPayload.nonce !== nonce) {
-      throw new Error('Invalid nonce in vp_token');
-    }
-    // vp_token is encrypted with our ephemeral public key, we need to decrypt it with our ephemeral private key
-    const { plaintext: vpTokenPlaintext } = await jose.compactDecrypt(
+    const { payload, protectedHeader } = await jose.jwtDecrypt(
       response,
       privateKey,
     );
-    const vpToken = JSON.parse(new TextDecoder().decode(vpTokenPlaintext));
-    console.log('vpToken:', vpToken);
+    console.log('payload:', payload);
+    console.log('protectedHeader:', protectedHeader);
 
     // TODO verify the vpToken contents, e.g. check the dcql_query is satisfied
 
-    return vpToken;
+    return payload;
   }
 
   async storeAuthorizationRequest(
     session: string,
     nonce: string,
-    privateKey: Crypto.KeyObject,
+    privateKey: jose.CryptoKey,
   ) {
     const id = crypto.randomUUID();
     const uri = `http://mu.semte.ch/vocabularies/ext/authorization-request/${id}`;
+    const privateJwk = await jose.exportJWK(privateKey);
     await updateSudo(`
       PREFIX ext: <http://mu.semte.ch/vocabularies/ext/>
       PREFIX dct: <http://purl.org/dc/terms/>
@@ -157,7 +146,7 @@ export class VCVerifier {
           ${sparqlEscapeUri(uri)} a ext:AuthorizationRequest ;
             ext:session ${sparqlEscapeUri(session)} ;
             ext:nonce ${sparqlEscapeString(nonce)} ;
-            ext:ephemeralPrivateKey ${sparqlEscapeString(JSON.stringify(privateKey.export({ format: 'jwk' })))} ;
+            ext:ephemeralPrivateKey ${sparqlEscapeString(JSON.stringify(privateJwk))} ;
             dct:created ${sparqlEscapeDateTime(new Date())} .
         }
       }
@@ -182,10 +171,10 @@ export class VCVerifier {
     const binding = result.results.bindings[0];
     return {
       nonce: binding.nonce.value,
-      privateKey: Crypto.createPrivateKey({
-        key: JSON.parse(binding.privateKey.value),
-        format: 'jwk',
-      }),
+      privateKey: await jose.importJWK(
+        JSON.parse(binding.privateKey.value),
+        'ECDH-ES',
+      ),
     };
   }
 }
