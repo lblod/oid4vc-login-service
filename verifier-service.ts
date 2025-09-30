@@ -146,6 +146,7 @@ export class VCVerifier {
     privateJwk.alg = 'ECDH-ES';
     privateJwk.use = 'enc';
     privateJwk.kid = 'eph';
+    await this.removeExistingKeysForSession(session);
     await updateSudo(`
       PREFIX ext: <http://mu.semte.ch/vocabularies/ext/>
       PREFIX dct: <http://purl.org/dc/terms/>
@@ -156,6 +157,23 @@ export class VCVerifier {
             ext:nonce ${sparqlEscapeString(nonce)} ;
             ext:ephemeralPrivateKey ${sparqlEscapeString(JSON.stringify(privateJwk))} ;
             dct:created ${sparqlEscapeDateTime(new Date())} .
+        }
+      }
+    `);
+  }
+
+  async removeExistingKeysForSession(session: string) {
+    await updateSudo(`
+      PREFIX ext: <http://mu.semte.ch/vocabularies/ext/>
+      DELETE {
+        GRAPH <http://mu.semte.ch/graphs/decide/verifier> {
+          ?authRequest ext:ephemeralPrivateKey ?privateKey .
+        }
+      } WHERE {
+        GRAPH <http://mu.semte.ch/graphs/decide/verifier> {
+          ?authRequest a ext:AuthorizationRequest ;
+            ext:session ${sparqlEscapeUri(session)} ;
+            ext:ephemeralPrivateKey ?privateKey .
         }
       }
     `);
