@@ -18,6 +18,7 @@ export class VCVerifier {
     const clientId = `${process.env.ISSUER_DID}`;
     const requestUri = `${process.env.ISSUER_URL}/vc-issuer/authorization-request?original-session=${encodeURIComponent(session)}`; // TODO change to verifier? we're both atm
     const authorizationRequestUri = `openid4vp://?request_uri=${encodeURIComponent(requestUri)}&client_id=${encodeURIComponent(clientId)}`;
+    await this.removeAllAuthorizationRequestsForSession(session);
     await this.createPendingAuthorizationRequest(session);
 
     return {
@@ -40,7 +41,7 @@ export class VCVerifier {
             dct:modified ${sparqlEscapeDateTime(new Date())} ;
             dct:created ${sparqlEscapeDateTime(new Date())} .
         }
-    `);
+      }`);
   }
 
   async removeAllAuthorizationRequestsForSession(session: string) {
@@ -208,17 +209,25 @@ export class VCVerifier {
     console.log('payload:', payload);
     console.log('protectedHeader:', protectedHeader);
 
-    const verified = await this.sdJwtService.validateAndDecodeCredential(
-      credential,
-      nonce,
-    );
+    const verified = await this.sdJwtService
+      .validateAndDecodeCredential(credential, nonce)
+      .then(async (res) => {
+        console.log('Credential verified successfully', res);
+        await this.updateAuthorizationRequestStatus(
+          originalSession,
+          'accepted',
+        );
 
-    if (verified.verified !== true) {
-      await this.updateAuthorizationRequestStatus(originalSession, 'rejected');
-      throw new Error('Could not verify the credential');
-    }
-
-    await this.updateAuthorizationRequestStatus(originalSession, 'accepted');
+        return res;
+      })
+      .catch(async (e) => {
+        console.log('Error verifying credential:', e);
+        await this.updateAuthorizationRequestStatus(
+          originalSession,
+          'rejected',
+        );
+        throw new Error('Could not verify the credential');
+      });
 
     return verified;
   }
