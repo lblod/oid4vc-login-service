@@ -1,5 +1,6 @@
 import bodyParser from 'body-parser';
 import { app } from 'mu';
+import * as jose from 'jose';
 
 // Required to set up a suite instance with private key
 import Router from 'express-promise-router';

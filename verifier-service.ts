@@ -121,6 +121,11 @@ export class VCVerifier {
     const { payload, protectedHeader } = await jose.jwtDecrypt(
       response,
       privateKey,
+      {
+        contentEncryptionAlgorithms: ['A128GCM'],
+        keyManagementAlgorithms: ['ECDH-ES'],
+        // we could verify the audience here if we wanted to be sure it's meant for us
+      },
     );
     console.log('payload:', payload);
     console.log('protectedHeader:', protectedHeader);
