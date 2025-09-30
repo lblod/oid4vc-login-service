@@ -112,6 +112,36 @@ export class VCVerifier {
     // TODO not great. if they have the session they can generate a request... do we mind?
   }
 
+  async handlePresentationResponse(session: string, body) {
+    const { response } = body;
+    if (!response) {
+      throw new Error('No response field in presentation response');
+    }
+    const { nonce, privateKey } = await this.fetchAuthorizationRequest(session);
+    const { payload: vpTokenPayload } = await jose.jwtVerify(
+      response,
+      getPublicKeyAsCryptoKey(),
+      {
+        audience: process.env.ISSUER_DID,
+        issuer: 'https://self-issued.me/v2',
+      },
+    );
+    if (vpTokenPayload.nonce !== nonce) {
+      throw new Error('Invalid nonce in vp_token');
+    }
+    // vp_token is encrypted with our ephemeral public key, we need to decrypt it with our ephemeral private key
+    const { plaintext: vpTokenPlaintext } = await jose.compactDecrypt(
+      response,
+      privateKey,
+    );
+    const vpToken = JSON.parse(new TextDecoder().decode(vpTokenPlaintext));
+    console.log('vpToken:', vpToken);
+
+    // TODO verify the vpToken contents, e.g. check the dcql_query is satisfied
+
+    return vpToken;
+  }
+
   async storeAuthorizationRequest(
     session: string,
     nonce: string,
@@ -127,10 +157,35 @@ export class VCVerifier {
           ${sparqlEscapeUri(uri)} a ext:AuthorizationRequest ;
             ext:session ${sparqlEscapeUri(session)} ;
             ext:nonce ${sparqlEscapeString(nonce)} ;
-            ext:ephemeralPrivateKey ${sparqlEscapeString(privateKey.export({ format: 'jwk' }).toString())} ;
+            ext:ephemeralPrivateKey ${sparqlEscapeString(JSON.stringify(privateKey.export({ format: 'jwk' })))} ;
             dct:created ${sparqlEscapeDateTime(new Date())} .
         }
       }
     `);
+  }
+
+  async fetchAuthorizationRequest(session: string) {
+    const result = await updateSudo(`
+      PREFIX ext: <http://mu.semte.ch/vocabularies/ext/>
+      SELECT ?nonce ?privateKey WHERE {
+        GRAPH <http://mu.semte.ch/graphs/decide/verifier> {
+          ?authRequest a ext:AuthorizationRequest ;
+            ext:session ${sparqlEscapeUri(session)} ;
+            ext:nonce ?nonce ;
+            ext:ephemeralPrivateKey ?privateKey .
+        }
+      } LIMIT 1
+    `);
+    if (result.results.bindings.length === 0) {
+      throw new Error(`No authorization request found for session ${session}`);
+    }
+    const binding = result.results.bindings[0];
+    return {
+      nonce: binding.nonce.value,
+      privateKey: Crypto.createPrivateKey({
+        key: JSON.parse(binding.privateKey.value),
+        format: 'jwk',
+      }),
+    };
   }
 }

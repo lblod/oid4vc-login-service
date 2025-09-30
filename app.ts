@@ -333,6 +333,8 @@ router.get('/authorization-request', handleAuthorizationRequest); // older specs
 router.post('/presentation-response', async function (req, res) {
   console.log('session:', req.get('mu-session-id'));
   console.log('body', req.body);
-  // TODO
+
+  await verifier.handlePresentationResponse(req.get('mu-session-id'), req.body);
+
   res.send({ status: 'ok' });
 });
