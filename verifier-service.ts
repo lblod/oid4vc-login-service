@@ -143,6 +143,9 @@ export class VCVerifier {
     const id = crypto.randomUUID();
     const uri = `http://mu.semte.ch/vocabularies/ext/authorization-request/${id}`;
     const privateJwk = await jose.exportJWK(privateKey);
+    privateJwk.alg = 'ECDH-ES';
+    privateJwk.use = 'enc';
+    privateJwk.kid = 'eph';
     await updateSudo(`
       PREFIX ext: <http://mu.semte.ch/vocabularies/ext/>
       PREFIX dct: <http://purl.org/dc/terms/>
