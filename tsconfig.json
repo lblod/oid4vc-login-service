@@ -1,6 +1,7 @@
 {
   "compilerOptions": {
-    "types": ["mu-types", "node"]
+    "types": ["mu-types", "node"],
+    "esModuleInterop": true
   },
   "exclude": ["node_modules"]
 }

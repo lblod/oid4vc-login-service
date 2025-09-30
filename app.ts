@@ -1,12 +1,11 @@
 import bodyParser from 'body-parser';
 import { app } from 'mu';
-import * as jose from 'jose';
 
 // Required to set up a suite instance with private key
 import Router from 'express-promise-router';
 import { VCIssuer } from './issuer-service';
-import { VCVerifier } from './verifier-service';
 import { SDJwtVCService } from './sd-jwt-vc';
+import { VCVerifier } from './verifier-service';
 
 const router = Router();
 app.use(
@@ -61,22 +60,12 @@ router.get('/status', function (req, res) {
   });
 });
 
-router.post('/issue-credential', async function (req, res) {
-  console.log('body', req.body);
-  const holderDid = req.body.holderDid;
-  const signedVC = await issuer.issueCredential(holderDid);
-  console.log(JSON.stringify(signedVC, null, 2));
-
-  res.send(signedVC);
-});
-
 router.get('/build-credential-offer-uri', async function (req, res) {
   const sessionUri = req.get('mu-session-id') as string;
-  const { pin, credentialOfferUri } =
+  const { credentialOfferUri } =
     await issuer.buildCredentialOfferUri(sessionUri);
   res.send({
     credentialOfferUri,
-    pin: pin,
   });
 });
 
@@ -326,10 +315,16 @@ const handleAuthorizationRequest = async function (req, res) {
   console.log('session:', req.get('mu-session-id'));
   console.log('body', req.body);
   console.log('query params', req.query);
+  const originalSession = req.query['original-session'] as string | undefined;
+  if (!originalSession) {
+    res.status(400).send({ error: 'missing original-session query parameter' });
+    return;
+  }
   const { wallet_metadata, wallet_nonce } = req.body;
   const session = req.get('mu-session-id') as string;
   const authorizationRequestData = await verifier.buildAuthorizationRequestData(
     session,
+    originalSession,
     wallet_metadata,
     wallet_nonce,
   );
@@ -342,10 +337,27 @@ router.post('/authorization-request', handleAuthorizationRequest);
 router.get('/authorization-request', handleAuthorizationRequest); // older specs use GET
 
 router.post('/presentation-response', async function (req, res) {
+  const currentSession = req.get('mu-session-id') as string;
+  const originalSession = req.query['original-session'] as string | undefined;
   console.log('session:', req.get('mu-session-id'));
   console.log('body', req.body);
 
-  await verifier.handlePresentationResponse(req.get('mu-session-id'), req.body);
+  if (!originalSession) {
+    res.status(400).send({ error: 'missing original-session query parameter' });
+    return;
+  }
+
+  await verifier.handlePresentationResponse(
+    currentSession,
+    originalSession,
+    req.body,
+  );
 
   res.send({ status: 'ok' });
+});
+
+router.get('/authorization-request-status', async function (req, res) {
+  const session = req.get('mu-session-id') as string;
+  const status = await verifier.getAuthorizationRequestStatus(session);
+  res.send({ status });
 });

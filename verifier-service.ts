@@ -1,19 +1,8 @@
-import * as Crypto from 'node:crypto';
-import {
-  createEphemeralKeyPair,
-  getPrivateKeyAsCryptoKey,
-  getPublicKeyAsCryptoKey,
-  getPublicKeyAsJwk,
-} from './crypto';
+import { querySudo, updateSudo } from '@lblod/mu-auth-sudo';
 import * as jose from 'jose';
-import { encode } from 'node:punycode';
-import { updateSudo } from '@lblod/mu-auth-sudo';
-import {
-  sparqlEscapeDateTime,
-  sparqlEscapeString,
-  sparqlEscapeUri,
-  uuid,
-} from 'mu';
+import { sparqlEscapeDateTime, sparqlEscapeString, sparqlEscapeUri } from 'mu';
+import * as Crypto from 'node:crypto';
+import { createEphemeralKeyPair, getPrivateKeyAsCryptoKey } from './crypto';
 import { SDJwtVCService } from './sd-jwt-vc';
 
 export class VCVerifier {
@@ -27,20 +16,100 @@ export class VCVerifier {
   async buildAuthorizationRequestUri(session: string) {
     //const clientId = `decentralized_identifier:${process.env.ISSUER_DID}`; // TODO older spec doesn't use a prefix and using it breaks paradym
     const clientId = `${process.env.ISSUER_DID}`;
-    const requestUri = `${process.env.ISSUER_URL}/vc-issuer/authorization-request`; // TODO change to verifier? we're both atm
+    const requestUri = `${process.env.ISSUER_URL}/vc-issuer/authorization-request?original-session=${encodeURIComponent(session)}`; // TODO change to verifier? we're both atm
     const authorizationRequestUri = `openid4vp://?request_uri=${encodeURIComponent(requestUri)}&client_id=${encodeURIComponent(clientId)}`;
+    await this.createPendingAuthorizationRequest(session);
 
     return {
       authorizationRequestUri,
     };
   }
 
+  async createPendingAuthorizationRequest(session: string) {
+    const id = crypto.randomUUID();
+    const uri = `http://mu.semte.ch/vocabularies/ext/authorization-request/${id}`;
+
+    await updateSudo(`
+      PREFIX ext: <http://mu.semte.ch/vocabularies/ext/>
+      PREFIX dct: <http://purl.org/dc/terms/>
+      INSERT DATA {
+        GRAPH <http://mu.semte.ch/graphs/decide/verifier> {
+          ${sparqlEscapeUri(uri)} a ext:AuthorizationRequest ;
+            ext:session ${sparqlEscapeUri(session)} ;
+            ext:status "pending" ;
+            dct:modified ${sparqlEscapeDateTime(new Date())} ;
+            dct:created ${sparqlEscapeDateTime(new Date())} .
+        }
+    `);
+  }
+
+  async removeAllAuthorizationRequestsForSession(session: string) {
+    await updateSudo(`
+      PREFIX ext: <http://mu.semte.ch/vocabularies/ext/>
+      DELETE {
+        GRAPH <http://mu.semte.ch/graphs/decide/verifier> {
+          ?authRequest ?p ?o .
+        }
+      } WHERE {
+        GRAPH <http://mu.semte.ch/graphs/decide/verifier> {
+          ?authRequest a ext:AuthorizationRequest ;
+            ext:session ${sparqlEscapeUri(session)} ;
+            ?p ?o .
+        }
+      }
+    `);
+  }
+
+  async getAuthorizationRequestStatus(session: string) {
+    const result = await querySudo(`
+      PREFIX ext: <http://mu.semte.ch/vocabularies/ext/>
+      SELECT ?status WHERE {
+        GRAPH <http://mu.semte.ch/graphs/decide/verifier> {
+          ?authRequest a ext:AuthorizationRequest ;
+            ext:session ${sparqlEscapeUri(session)} ;
+            ext:status ?status .
+        }
+      } LIMIT 1
+    `);
+    if (result.results.bindings.length === 0) {
+      return null;
+    }
+    return result.results.bindings[0].status.value;
+  }
+
+  async updateAuthorizationRequestStatus(session: string, status: string) {
+    await updateSudo(`
+      PREFIX ext: <http://mu.semte.ch/vocabularies/ext/>
+      PREFIX dct: <http://purl.org/dc/terms/>
+      DELETE {
+        GRAPH <http://mu.semte.ch/graphs/decide/verifier> {
+          ?authRequest ext:status ?oldStatus .
+          ?authRequest dct:modified ?oldMod .
+        }
+      } INSERT {
+        GRAPH <http://mu.semte.ch/graphs/decide/verifier> {
+          ?authRequest ext:status ${sparqlEscapeString(status)} ;
+            dct:modified ${sparqlEscapeDateTime(new Date())} .
+        }
+      } WHERE {
+        GRAPH <http://mu.semte.ch/graphs/decide/verifier> {
+          ?authRequest a ext:AuthorizationRequest ;
+            ext:session ${sparqlEscapeUri(session)} ;
+            dct:modified ?oldMod ;
+            ext:status ?oldStatus .
+        }
+      }
+    `);
+  }
+
   async buildAuthorizationRequestData(
     session: string,
+    originalSession: string,
     wallet_metadata: string,
     wallet_nonce: string,
   ) {
-    const walletMetadata = wallet_metadata
+    // TODO ignoring for now
+    const _walletMetadata = wallet_metadata
       ? JSON.parse(wallet_metadata)
       : undefined;
     const walletNonce = wallet_nonce;
@@ -64,10 +133,6 @@ export class VCVerifier {
         },
       ],
     };
-    const transactionData = {
-      type: 'DecideVerifiablePresentationRequest',
-      credential_ids: [`${process.env.ISSUER_URL}`], // TODO still using issuer url as credential id, should probably change this.
-    }; // TODO define transaction data if needed
     //const clientId = `decentralized_identifier:${process.env.ISSUER_DID}`; // TODO older spec doesn't use a prefix and using it breaks paradym
     const clientId = `${process.env.ISSUER_DID}`;
     const nonce = Crypto.randomBytes(16).toString('base64url');
@@ -75,7 +140,7 @@ export class VCVerifier {
     const payload = {
       response_type: 'vp_token',
       client_id: clientId,
-      response_uri: `${process.env.ISSUER_URL}/vc-issuer/presentation-response`, // TODO change to verifier? we're both atm
+      response_uri: `${process.env.ISSUER_URL}/vc-issuer/presentation-response?original-session=${encodeURIComponent(originalSession)}`, // TODO change to verifier? we're both atm
       response_mode: 'direct_post.jwt',
       nonce,
       dcql_query: dcqlQuery,
@@ -95,7 +160,7 @@ export class VCVerifier {
     if (walletNonce) {
       payload['wallet_nonce'] = walletNonce;
     }
-    await this.storeAuthorizationRequest(
+    await this.storeAuthorizationRequestKey(
       session,
       nonce,
       ephemeralKey.privateKey,
@@ -114,12 +179,17 @@ export class VCVerifier {
     // TODO not great. if they have the session they can generate a request... do we mind?
   }
 
-  async handlePresentationResponse(session: string, body) {
+  async handlePresentationResponse(
+    session: string,
+    originalSession: string,
+    body,
+  ) {
     const { response } = body;
     if (!response) {
       throw new Error('No response field in presentation response');
     }
-    const { nonce, privateKey } = await this.fetchAuthorizationRequest(session);
+    const { nonce, privateKey } =
+      await this.fetchAuthorizationRequestKey(session);
     const { payload, protectedHeader } = await jose.jwtDecrypt(
       response,
       privateKey,
@@ -129,7 +199,7 @@ export class VCVerifier {
         // we could verify the audience here if we wanted to be sure it's meant for us
       },
     );
-    const vp_token = payload.vp_token;
+    const vp_token = payload.vp_token as { decide_credential?: string };
     if (!vp_token?.decide_credential) {
       throw new Error('No decide_credential in vp_token');
     }
@@ -138,23 +208,28 @@ export class VCVerifier {
     console.log('payload:', payload);
     console.log('protectedHeader:', protectedHeader);
 
-    const verified = this.sdJwtService.validateAndDecodeCredential(
+    const verified = await this.sdJwtService.validateAndDecodeCredential(
       credential,
       nonce,
     );
 
-    // TODO verify the vpToken contents, e.g. check the dcql_query is satisfied
+    if (verified.verified !== true) {
+      await this.updateAuthorizationRequestStatus(originalSession, 'rejected');
+      throw new Error('Could not verify the credential');
+    }
+
+    await this.updateAuthorizationRequestStatus(originalSession, 'accepted');
 
     return verified;
   }
 
-  async storeAuthorizationRequest(
+  async storeAuthorizationRequestKey(
     session: string,
     nonce: string,
     privateKey: jose.CryptoKey,
   ) {
     const id = crypto.randomUUID();
-    const uri = `http://mu.semte.ch/vocabularies/ext/authorization-request/${id}`;
+    const uri = `http://mu.semte.ch/vocabularies/ext/authorization-request-data/${id}`;
     const privateJwk = await jose.exportJWK(privateKey);
     privateJwk.alg = 'ECDH-ES';
     privateJwk.use = 'enc';
@@ -165,7 +240,7 @@ export class VCVerifier {
       PREFIX dct: <http://purl.org/dc/terms/>
       INSERT DATA {
         GRAPH <http://mu.semte.ch/graphs/decide/verifier> {
-          ${sparqlEscapeUri(uri)} a ext:AuthorizationRequest ;
+          ${sparqlEscapeUri(uri)} a ext:AuthorizationRequestEphemeralKey ;
             ext:session ${sparqlEscapeUri(session)} ;
             ext:nonce ${sparqlEscapeString(nonce)} ;
             ext:ephemeralPrivateKey ${sparqlEscapeString(JSON.stringify(privateJwk))} ;
@@ -184,7 +259,7 @@ export class VCVerifier {
         }
       } WHERE {
         GRAPH <http://mu.semte.ch/graphs/decide/verifier> {
-          ?authRequest a ext:AuthorizationRequest ;
+          ?authRequest a ext:AuthorizationRequestEphemeralKey ;
             ext:session ${sparqlEscapeUri(session)} ;
             ext:ephemeralPrivateKey ?privateKey .
         }
@@ -192,12 +267,12 @@ export class VCVerifier {
     `);
   }
 
-  async fetchAuthorizationRequest(session: string) {
+  async fetchAuthorizationRequestKey(session: string) {
     const result = await updateSudo(`
       PREFIX ext: <http://mu.semte.ch/vocabularies/ext/>
       SELECT ?nonce ?privateKey WHERE {
         GRAPH <http://mu.semte.ch/graphs/decide/verifier> {
-          ?authRequest a ext:AuthorizationRequest ;
+          ?authRequest a ext:AuthorizationRequestEphemeralKey ;
             ext:session ${sparqlEscapeUri(session)} ;
             ext:nonce ?nonce ;
             ext:ephemeralPrivateKey ?privateKey .
