@@ -140,6 +140,7 @@ export async function createEphemeralKeyPair() {
     crv: 'P-256',
   });
   const jwk = await jose.exportJWK(publicKey);
+  jwk.kid = 'eph'; // we can use a static kid as we only have one key per request, this is mostly for debugging
 
   return { publicKey, privateKey, jwk };
 }
