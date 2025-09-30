@@ -7,6 +7,13 @@ import {
 } from './crypto';
 import * as jose from 'jose';
 import { encode } from 'node:punycode';
+import { updateSudo } from '@lblod/mu-auth-sudo';
+import {
+  sparqlEscapeDateTime,
+  sparqlEscapeString,
+  sparqlEscapeUri,
+  uuid,
+} from 'mu';
 
 export class VCVerifier {
   ready = false;
@@ -75,6 +82,8 @@ export class VCVerifier {
       state: session, // use the session as state so we can verify it on the response
       client_metadata: {
         jwks: {
+          // we could in theory add multiple jwks here to support multiple algorithms, no need now
+          // no need to have multiple keys for key rotation because we generate a key per client
           keys: [ephemeralKey.jwk],
         },
         authorization_encrypted_response_alg: 'ECDH-ES',
@@ -84,6 +93,11 @@ export class VCVerifier {
     if (walletNonce) {
       payload['wallet_nonce'] = walletNonce;
     }
+    await this.storeAuthorizationRequest(
+      session,
+      nonce,
+      ephemeralKey.privateKey,
+    );
     // request is jwt signed with our private key
     const request = await new jose.SignJWT(payload)
       .setProtectedHeader({
@@ -96,5 +110,27 @@ export class VCVerifier {
 
     return request;
     // TODO not great. if they have the session they can generate a request... do we mind?
+  }
+
+  async storeAuthorizationRequest(
+    session: string,
+    nonce: string,
+    privateKey: Crypto.KeyObject,
+  ) {
+    const id = crypto.randomUUID();
+    const uri = `http://mu.semte.ch/vocabularies/ext/authorization-request/${id}`;
+    await updateSudo(`
+      PREFIX ext: <http://mu.semte.ch/vocabularies/ext/>
+      PREFIX dct: <http://purl.org/dc/terms/>
+      INSERT DATA {
+        GRAPH <http://mu.semte.ch/graphs/decide/verifier> {
+          ${sparqlEscapeUri(uri)} a ext:AuthorizationRequest ;
+            ext:session ${sparqlEscapeString(session)} ;
+            ext:nonce ${sparqlEscapeString(nonce)} ;
+            ext:ephemeralPrivateKey ${sparqlEscapeString(privateKey.export({ format: 'jwk' }).toString())} ;
+            dct:created ${sparqlEscapeDateTime(new Date())} .
+        }
+      }
+    `);
   }
 }

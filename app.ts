@@ -312,6 +312,7 @@ router.get('/build-authorization-request-uri', async function (req, res) {
 });
 
 const handleAuthorizationRequest = async function (req, res) {
+  console.log('session:', req.get('mu-session-id'));
   console.log('body', req.body);
   console.log('query params', req.query);
   const { wallet_metadata, wallet_nonce } = req.body;
@@ -330,6 +331,7 @@ router.post('/authorization-request', handleAuthorizationRequest);
 router.get('/authorization-request', handleAuthorizationRequest); // older specs use GET
 
 router.post('/presentation-response', async function (req, res) {
+  console.log('session:', req.get('mu-session-id'));
   console.log('body', req.body);
   // TODO
   res.send({ status: 'ok' });

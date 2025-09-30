@@ -138,5 +138,6 @@ export function createEphemeralKeyPair() {
     namedCurve: 'P-256',
   });
   const jwk = publicKey.export({ format: 'jwk' });
+  console.log('private eph key:', privateKey.export({ format: 'jwk' }));
   return { publicKey, privateKey, jwk };
 }
