@@ -1,6 +1,11 @@
 import { digest, generateSalt } from '@sd-jwt/crypto-nodejs';
 import { SDJwtVcInstance } from '@sd-jwt/sd-jwt-vc';
-import type { DisclosureFrame, Signer, Verifier } from '@sd-jwt/types';
+import type {
+  DisclosureFrame,
+  JwtPayload,
+  Signer,
+  Verifier,
+} from '@sd-jwt/types';
 import * as Crypto from 'node:crypto';
 import { getPrivateKeyAsCryptoKey, getPublicKeyAsCryptoKey } from './crypto';
 
@@ -20,7 +25,31 @@ const createSignerVerifier = () => {
       Buffer.from(sig, 'base64url'),
     );
   };
-  return { signer, verifier };
+  const kbVerifier = async (data: string, sig: string, payload: JwtPayload) => {
+    const holderJwk = payload.cnf?.jwk;
+    const holderPublicKey = await Crypto.subtle.importKey(
+      'jwk',
+      holderJwk as JsonWebKey,
+      {
+        name: 'ECDSA',
+        namedCurve: 'P-256',
+      },
+      true,
+      ['verify'],
+    );
+    const encoder = new TextEncoder();
+    const signature = Uint8Array.from(
+      atob(sig.replace(/-/g, '+').replace(/_/g, '/')),
+      (c) => c.charCodeAt(0),
+    );
+    return Crypto.subtle.verify(
+      { name: 'ECDSA', hash: { name: 'SHA-256' } },
+      holderPublicKey,
+      signature,
+      encoder.encode(data),
+    );
+  };
+  return { signer, verifier, kbVerifier };
 };
 
 export class SDJwtVCService {
@@ -33,15 +62,13 @@ export class SDJwtVCService {
     if (this.ready) {
       return;
     }
-    const { signer, verifier } = await createSignerVerifier();
+    const { signer, verifier, kbVerifier } = await createSignerVerifier();
 
     this.sdjwt = new SDJwtVcInstance({
       signer,
       verifier,
+      kbVerifier,
       signAlg: 'EdDSA',
-      kbSigner: signer,
-      kbSignAlg: 'EdDSA',
-      kbVerifier: verifier,
       hasher: digest,
       hashAlg: 'sha-256',
       saltGenerator: generateSalt,
@@ -117,7 +144,7 @@ export class SDJwtVCService {
 
   async validateAndDecodeCredential(credential: string, nonce: string) {
     const verified = await this.sdjwt.verify(credential, {
-      requiredCLaimKeys: ['decideGroups', 'id'],
+      requiredClaimKeys: ['decideGroups', 'id'],
       keyBindingNonce: nonce,
     });
     console.log('verified:', verified);
