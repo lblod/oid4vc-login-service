@@ -277,7 +277,7 @@ export class VCVerifier {
             ext:session ${sparqlEscapeUri(session)} ;
             dct:created ?created ;
             ext:ephemeralPrivateKey ?privateKey .
-            FILTER(?created < "${sparqlEscapeDateTime(new Date(Date.now() - EPHEMERAL_KEY_TTL))})
+            FILTER(?created < ${sparqlEscapeDateTime(new Date(Date.now() - EPHEMERAL_KEY_TTL))})
         }
       }
     `);

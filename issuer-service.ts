@@ -248,7 +248,7 @@ export class VCIssuer {
   }
 
   async generateCredentialOfferToken(sessionUri) {
-    const token = randomBytes(32).toString('hex');
+    const token = randomBytes(512).toString('hex');
     await this.storeCredentialOfferToken(token, sessionUri);
     return token;
   }
