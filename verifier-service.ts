@@ -275,9 +275,7 @@ export class VCVerifier {
         GRAPH <http://mu.semte.ch/graphs/decide/verifier> {
           ?authRequest a ext:AuthorizationRequestEphemeralKey ;
             ext:session ${sparqlEscapeUri(session)} ;
-            dct:created ?created ;
             ext:ephemeralPrivateKey ?privateKey .
-            FILTER(?created < ${sparqlEscapeDateTime(new Date(Date.now() - EPHEMERAL_KEY_TTL))})
         }
       }
     `);
@@ -286,12 +284,15 @@ export class VCVerifier {
   async fetchAuthorizationRequestKey(session: string) {
     const result = await updateSudo(`
       PREFIX ext: <http://mu.semte.ch/vocabularies/ext/>
+      PREFIX dct: <http://purl.org/dc/terms/>
       SELECT ?nonce ?privateKey WHERE {
         GRAPH <http://mu.semte.ch/graphs/decide/verifier> {
           ?authRequest a ext:AuthorizationRequestEphemeralKey ;
             ext:session ${sparqlEscapeUri(session)} ;
             ext:nonce ?nonce ;
+            dct:created ?created ;
             ext:ephemeralPrivateKey ?privateKey .
+            FILTER(?created > ${sparqlEscapeDateTime(new Date(Date.now() - EPHEMERAL_KEY_TTL))})
         }
       } LIMIT 1
     `);
