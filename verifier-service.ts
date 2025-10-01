@@ -178,6 +178,8 @@ export class VCVerifier {
       })
       .sign(getPrivateKeyAsCryptoKey()); // TODO cache?
 
+    await this.updateAuthorizationRequestStatus(session, 'received');
+
     return request;
     // TODO not great. if they have the session they can generate a request... do we mind?
   }
