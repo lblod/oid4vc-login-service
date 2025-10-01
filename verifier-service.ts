@@ -5,6 +5,7 @@ import * as Crypto from 'node:crypto';
 import { createEphemeralKeyPair, getPrivateKeyAsCryptoKey } from './crypto';
 import { SDJwtVCService } from './sd-jwt-vc';
 
+const EPHEMERAL_KEY_TTL = 10 * 60 * 1000; // 10 minutes
 export class VCVerifier {
   ready = false;
   sdJwtService: SDJwtVCService;
@@ -274,7 +275,9 @@ export class VCVerifier {
         GRAPH <http://mu.semte.ch/graphs/decide/verifier> {
           ?authRequest a ext:AuthorizationRequestEphemeralKey ;
             ext:session ${sparqlEscapeUri(session)} ;
+            dct:created ?created ;
             ext:ephemeralPrivateKey ?privateKey .
+            FILTER(?created < "${sparqlEscapeDateTime(new Date(Date.now() - EPHEMERAL_KEY_TTL))})
         }
       }
     `);
