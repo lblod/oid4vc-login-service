@@ -125,6 +125,12 @@ router.get('/issuer_metadata', async function (req, res) {
               locale: 'en-US',
             },
           },
+          otherProjectGroups: {
+            en: {
+              name: 'Other Project Groups',
+              locale: 'en-US',
+            },
+          },
           id: {
             en: {
               name: 'id',
@@ -156,6 +162,15 @@ router.get('/issuer_metadata', async function (req, res) {
               display: [
                 {
                   name: 'Decide Groups',
+                  locale: 'en-US',
+                },
+              ],
+            },
+            {
+              path: ['otherProjectGroups'],
+              display: [
+                {
+                  name: 'Other Project Groups',
                   locale: 'en-US',
                 },
               ],
@@ -201,6 +216,11 @@ router.get('/vct', function (req, res) {
         sd: 'allowed',
       },
       {
+        path: 'otherProjectGroups',
+        display: { name: 'Other Project Groups', locale: 'en-US' },
+        sd: 'allowed',
+      },
+      {
         path: 'id',
         display: { name: 'ID', locale: 'en-US' },
         sd: 'allowed',
@@ -213,11 +233,14 @@ router.get('/vct', function (req, res) {
         decideGroups: {
           type: 'string',
         },
+        otherProjectGroups: {
+          type: 'string',
+        },
         id: {
           type: 'string',
         },
       },
-      required: ['decideGroups', 'id'],
+      required: ['id'],
     },
   });
 });

@@ -80,12 +80,13 @@ export class SDJwtVCService {
     // Issuer Define the claims object with the user's information
     const claims = {
       decideGroups: 'Foo,Bar,Baz',
+      otherProjectGroups: 'Qux,Quux',
       id: ownerDid,
     };
 
     // Issuer Define the disclosure frame to specify which claims can be disclosed
     const disclosureFrame: DisclosureFrame<typeof claims> = {
-      _sd: ['decideGroups', 'id'],
+      _sd: ['decideGroups', 'otherProjectGroups', 'id'],
     };
 
     // Issue a signed JWT credential with the specified claims and disclosures
