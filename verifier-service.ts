@@ -149,6 +149,8 @@ export class VCVerifier {
       iat: Math.floor(Date.now() / 1000),
       exp: Math.floor(Date.now() / 1000) + 600, // 10 minutes
       client_metadata: {
+        client_name: 'Decide VC Verifier',
+        logo_uri: `${process.env.ISSUER_URL}/assets/logo.png`,
         jwks: {
           // we could in theory add multiple jwks here to support multiple algorithms, no need now
           // no need to have multiple keys for key rotation because we generate a key per client
