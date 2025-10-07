@@ -135,6 +135,7 @@ export async function getIssuerRouter(issuer) {
   });
 
   // should be exposed at issuer_url/.well-known/vct/issuer_path
+  // as per: datatracker.ietf.org/doc/html/draft-ietf-oauth-sd-jwt-vc-11#name-retrieving-type-metadata
   router.get('/vct', function (req, res) {
     res.send({
       vct: `${env.ISSUER_URL}`,
