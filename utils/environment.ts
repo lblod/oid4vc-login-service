@@ -4,8 +4,12 @@ const PROJECT_NAME = process.env.PROJECT_NAME || 'Decide';
 
 const environment = {
   AUTH_CODE_TTL: parseInt(process.env.AUTH_CODE_TTL || '60000'), // 10 minutes
+  AUTHORIZATION_REQUEST_TTL: parseInt(
+    process.env.AUTHORIZATION_REQUEST_TTL || '600000',
+  ), // 10 minutes
   CARD_BACKGROUND_COLOR: process.env.CARD_BACKGROUND_COLOR || '#12107c',
   CARD_TEXT_COLOR: process.env.CARD_TEXT_COLOR || '#FFFFFF',
+  CLEANUP_CRON_PATTERN: process.env.CLEANUP_CRON_PATTERN || '51 * * * *', // Every hour
   CREDENTIAL_NAME:
     process.env.CREDENTIAL_NAME || `${PROJECT_NAME} Roles Credential`,
 

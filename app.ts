@@ -7,6 +7,7 @@ import { SDJwtVCService } from './services/sd-jwt-vc';
 import { VCVerifier } from './services/verifier';
 import { getIssuerRouter } from './routers/issuer';
 import { getVerifierRouter } from './routers/verifier';
+import { startCleanupCron } from './utils/cleanup-cron';
 
 app.use(
   bodyParser.json({
@@ -53,6 +54,7 @@ setup()
     process.exit(1);
   })
   .then(async () => {
+    startCleanupCron({ issuerService: issuer, verifierService: verifier });
     const issuerRouter = await getIssuerRouter(issuer);
     const verifierRouter = await getVerifierRouter(verifier);
     app.use('/issuer', issuerRouter);

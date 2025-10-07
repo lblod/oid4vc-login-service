@@ -167,7 +167,7 @@ export class VCIssuer {
     return result.results.bindings[0]?.session.value;
   }
 
-  async deleteOldCredentialAuthCodes() {
+  async removeOldCredentialAuthCodes() {
     await updateSudo(`
       DELETE {
         GRAPH ?g {
@@ -233,7 +233,7 @@ export class VCIssuer {
     return result;
   }
 
-  async deleteOldCredentialOfferTokens() {
+  async removeOldCredentialOfferTokens() {
     await updateSudo(`
       DELETE {
         GRAPH ?g {

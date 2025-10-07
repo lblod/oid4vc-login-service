@@ -14,7 +14,8 @@ export async function getIssuerRouter(issuer) {
   });
 
   router.get('/issuer_metadata', async function (req, res) {
-    // to be configured in the dispatcher, the path is forced to be .well-known/openid-credential-issuer/something/something
+    // to be configured in the dispatcher, the path is forced to be issuer_url.well-known/openid-credential-issuer/something/something
+    // if the issuer is exposed at issuer_url/something/something
     // we can send signed metadata, but we are required to send unsigned for sure, let's start with that
     const issuerUrl = env.ISSUER_URL;
     res.send({
@@ -118,6 +119,7 @@ export async function getIssuerRouter(issuer) {
     });
   });
 
+  // should be exposed at issuer_url/.well-known/oauth-authorization-server/issuer_path
   router.get('/authorization_metadata', async function (req, res) {
     const issuerUrl = env.ISSUER_URL;
     res.send({
@@ -132,6 +134,7 @@ export async function getIssuerRouter(issuer) {
     });
   });
 
+  // should be exposed at issuer_url/.well-known/vct/issuer_path
   router.get('/vct', function (req, res) {
     res.send({
       vct: `${env.ISSUER_URL}`,

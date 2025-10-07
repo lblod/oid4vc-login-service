@@ -9,7 +9,6 @@ import {
 import { SDJwtVCService } from './sd-jwt-vc';
 import env from '../utils/environment';
 
-const EPHEMERAL_KEY_TTL = 10 * 60 * 1000; // 10 minutes
 export class VCVerifier {
   ready = false;
   sdJwtService: SDJwtVCService;
@@ -115,6 +114,26 @@ export class VCVerifier {
             ext:session ${sparqlEscapeUri(session)} ;
             dct:modified ?oldMod ;
             ext:status ?oldStatus .
+        }
+      }
+    `);
+  }
+
+  async removeOldAuthorizationRequests() {
+    await updateSudo(`
+      PREFIX ext: <http://mu.semte.ch/vocabularies/ext/>
+      PREFIX dct: <http://purl.org/dc/terms/>
+      DELETE {
+        GRAPH <http://mu.semte.ch/graphs/decide/verifier> {
+          ?authRequest ?p ?o .
+        }
+      } WHERE {
+        GRAPH <http://mu.semte.ch/graphs/decide/verifier> {
+          ?authRequest a ext:AuthorizationRequest ;
+            ext:verifierUrl ${sparqlEscapeString(env.VERIFIER_URL)} ;
+            dct:created ?created ;
+            ?p ?o .
+            FILTER(?created < ${sparqlEscapeDateTime(new Date(Date.now() - env.AUTHORIZATION_REQUEST_TTL))})
         }
       }
     `);
@@ -309,7 +328,7 @@ export class VCVerifier {
             ext:nonce ?nonce ;
             dct:created ?created ;
             ext:ephemeralPrivateKey ?privateKey .
-            FILTER(?created > ${sparqlEscapeDateTime(new Date(Date.now() - EPHEMERAL_KEY_TTL))})
+            FILTER(?created > ${sparqlEscapeDateTime(new Date(Date.now() - env.AUTHORIZATION_REQUEST_TTL))})
         }
       } LIMIT 1
     `);
@@ -324,5 +343,25 @@ export class VCVerifier {
         'ECDH-ES',
       ),
     };
+  }
+
+  async removeOldAuthorizationRequestKeys() {
+    await updateSudo(`
+      PREFIX ext: <http://mu.semte.ch/vocabularies/ext/>
+      PREFIX dct: <http://purl.org/dc/terms/>
+      DELETE {
+        GRAPH <http://mu.semte.ch/graphs/decide/verifier> {
+          ?authRequest ext:ephemeralPrivateKey ?privateKey .
+        }
+      } WHERE {
+        GRAPH <http://mu.semte.ch/graphs/decide/verifier> {
+          ?authRequest a ext:AuthorizationRequestEphemeralKey ;
+            ext:verifierUrl ${sparqlEscapeString(env.VERIFIER_URL)} ;
+            dct:created ?created ;
+            ext:ephemeralPrivateKey ?privateKey .
+            FILTER(?created < ${sparqlEscapeDateTime(new Date(Date.now() - env.AUTHORIZATION_REQUEST_TTL))})
+        }
+      }
+    `);
   }
 }

@@ -43,6 +43,7 @@
     "multiformats": "^13.4.1",
     "did-resolver": "^4.1.0",
     "web-did-resolver": "^2.0.30",
+    "cron": "^3.1.7",
     "@sphereon/did-resolver-key": "0.10.2-unstable.5"
   }
 }
