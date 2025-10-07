@@ -140,7 +140,7 @@ export async function getIssuerRouter(issuer) {
     res.send({
       issuer: issuerUrl,
       scopes_supported: [env.CREDENTIAL_TYPE],
-      authorization_endpoint: `${issuerUrl}/authorize`, // we don't have this yet, we don't have grant types that require it
+      authorization_endpoint: `${issuerUrl}/authorize`,
       token_endpoint: `${issuerUrl}/token`,
       response_types_supported: ['code'],
       grant_types_supported: [
@@ -256,16 +256,14 @@ export async function getIssuerRouter(issuer) {
     const token = auth.split(' ')[1];
     const sessionInfo = await issuer.validateAuthToken(token);
     if (!sessionInfo) {
-      // TODO we don't have actual session info yet, ignore this for now
-      // res.status(401).send({ error: 'invalid_token' });
-      // return;
+      res.status(401).send({ error: 'invalid_token' });
+      return;
     }
-    // we don't actually have multiple credential types yet, so the wallet won't send this property
+    // we don't actually have multiple credential types yet, so even if the wallet sends this, we can ignore it
     // if (credential_configuration_id !== env.CREDENTIAL_TYPE) {
     //   res.status(400).send({ error: 'invalid_credential_configuration_id' });
     //   return;
     // }
-    // we don't require a proof for now, the wallet sends one anyway, it helps us figure out the did though
     if (!jwt) {
       res.status(400).send({ error: 'missing_proof' });
       return;
@@ -274,8 +272,8 @@ export async function getIssuerRouter(issuer) {
     console.log('holder did:', did);
     console.log('holder jwk:', jwk);
 
-    const signedVC = await issuer.issueCredential(did, jwk);
-    // credential because our wallet follows an old version of the spec
+    const signedVC = await issuer.issueCredential(did, jwk, sessionInfo);
+
     const response = {
       c_nonce: await issuer.generateNonce(), // for old specs
       c_nonce_expires_in: 300, // yeah... it really doesn't, for old specs

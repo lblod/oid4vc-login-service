@@ -80,11 +80,19 @@ export class SDJwtVCService {
     this.ready = true;
   }
 
-  async buildCredential(ownerDid: string, jwk) {
+  async buildCredential(
+    ownerDid: string,
+    jwk,
+    sessionInfo: { [group: string]: string[] },
+  ) {
+    // currently only allowing for one group per session
+    const firstGroup = Object.keys(sessionInfo)[0];
+    const roles = sessionInfo[firstGroup].join(',');
+
     // Issuer Define the claims object with the user's information
     const claims = {
-      group: 'Foo,Bar,Baz',
-      roles: 'admin,user',
+      group: firstGroup,
+      roles: roles,
       id: ownerDid,
     };
 

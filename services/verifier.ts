@@ -250,6 +250,11 @@ export class VCVerifier {
     const verified = await this.sdJwtService
       .validateAndDecodeCredential(credential, nonce)
       .then(async (res) => {
+        const payload = res.payload;
+        await this.updateSessionWithCredentialGroupsAndRoles(
+          originalSession,
+          payload,
+        );
         console.log('Credential verified successfully', res);
         await this.updateAuthorizationRequestStatus(
           originalSession,
@@ -360,6 +365,55 @@ export class VCVerifier {
             dct:created ?created ;
             ext:ephemeralPrivateKey ?privateKey .
             FILTER(?created < ${sparqlEscapeDateTime(new Date(Date.now() - env.AUTHORIZATION_REQUEST_TTL))})
+        }
+      }
+    `);
+  }
+
+  async updateSessionWithCredentialGroupsAndRoles(
+    session: string,
+    { group, roles }: { group: string; roles: string },
+  ) {
+    const safeRolesString = roles
+      .split(',')
+      .map((role) => sparqlEscapeString(role))
+      .join('\n');
+
+    await updateSudo(`
+      PREFIX ext: <http://mu.semte.ch/vocabularies/ext/>
+      PREFIX dct: <http://purl.org/dc/terms/>
+      DELETE {
+        GRAPH ?g {
+          ?session ext:sessionGroup ?oldGroup ;
+            ext:sessionRole ?oldRoles ;
+            dct:modified ?oldMod .
+        }
+      } INSERT {
+        GRAPH ?g {
+          ?session ext:sessionGroup ?newGroup ;
+            ext:sessionRole ?newRoles ;
+            dct:modified ?newMod .
+        }
+    }  WHERE {
+        GRAPH ?g {
+          VALUES ?session {
+            ${sparqlEscapeUri(session)}
+          }
+          ?session a ext:Session .
+          OPTIONAL {
+            ?session ext:sessionGroup ?oldGroup .
+          }
+          OPTIONAL {
+            ?session ext:sessionRole ?oldRoles .
+          }
+          OPTIONAL {
+            ?session dct:modified ?oldMod .
+          }
+          VALUES ?newGroup { ${sparqlEscapeUri(group)} }
+          VALUES ?newRoles {
+            ${safeRolesString}
+          }
+          BIND(NOW() AS ?newMod)
         }
       }
     `);

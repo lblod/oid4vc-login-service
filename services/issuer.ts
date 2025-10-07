@@ -83,8 +83,12 @@ export class VCIssuer {
   }
 
   // jwk is the public key that corresponds to the did (we already resolved it during verification, so let's not do so again)
-  async issueCredential(holderDid: string, jwk) {
-    return this.sdJwtService.buildCredential(holderDid, jwk);
+  async issueCredential(
+    holderDid: string,
+    jwk,
+    sessionInfo: { [group: string]: string[] },
+  ) {
+    return this.sdJwtService.buildCredential(holderDid, jwk, sessionInfo);
   }
 
   async buildCredentialOfferUri(sessionUri: string) {
@@ -113,6 +117,7 @@ export class VCIssuer {
     }
     const groups = {};
     result.results.bindings.forEach(async (binding) => {
+      // currently every session can only be part of one group, but this structure allows for multiple groups if that ever changes
       const group = binding.group.value;
       const role = binding.role.value;
       if (!groups[group]) {
