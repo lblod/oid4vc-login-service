@@ -151,6 +151,24 @@ export async function getIssuerRouter(issuer) {
           sd: 'allowed',
         },
       ],
+      display: [
+        {
+          lang: 'en',
+          name: env.CREDENTIAL_NAME,
+          description: `A credential that holds the groups you have access to in ${env.PROJECT_NAME}`,
+          rendering: {
+            simple: {
+              background_color: env.CARD_BACKGROUND_COLOR,
+              text_color: env.CARD_TEXT_COLOR,
+              logo: {
+                url: env.LOGO_URL,
+                uri: env.LOGO_URL,
+                alt_text: `${env.PROJECT_NAME} Logo`,
+              },
+            },
+          },
+        },
+      ],
       schema: {
         $schema: 'https://json-schema.org/draft/2020-12/schema',
         type: 'object',
