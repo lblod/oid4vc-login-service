@@ -22,7 +22,7 @@ const environment = {
   ISSUER_PRIVATE_KEY: process.env.ISSUER_PRIVATE_KEY,
   ISSUER_NAME: process.env.ISSUER_NAME || `${PROJECT_NAME} OID4VC Issuer`,
   ISSUER_URL,
-  LOGO_URL: process.env.logo_URL || `${ISSUER_URL}/assets/logo.png`,
+  LOGO_URL: process.env.LOGO_URL || `${ISSUER_URL}/assets/logo.png`,
   NO_DID_PREFIX: process.env.NO_DID_PREFIX === 'true', // because of old spec versions, some wallets break without this
   PROJECT_NAME,
   SINGLE_CREDENTIAL_RESPONSE: process.env.SINGLE_CREDENTIAL_RESPONSE === 'true', // because of old spec versions, some wallets break without this
