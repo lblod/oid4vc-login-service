@@ -1,8 +1,8 @@
 {
-  "name": "vc-issuer-service",
+  "name": "oid4vc-login-service",
   "version": "0.0.0",
   "type": "module",
-  "description": "Service to issue verifiable credentials and peripheral logic (like issuing DIDs)",
+  "description": "Service that issues sd-jwt-vc credentials according to the oid4vci protocol and that also verifies them according to the oid4vp protocol and gives you a session containing the roles specified in the credential if the credential is valid",
   "main": "app.ts",
   "author": "redpencil.io",
   "license": "MIT",
