@@ -83,13 +83,14 @@ export class SDJwtVCService {
   async buildCredential(ownerDid: string, jwk) {
     // Issuer Define the claims object with the user's information
     const claims = {
-      groups: 'Foo,Bar,Baz',
+      group: 'Foo,Bar,Baz',
+      roles: 'admin,user',
       id: ownerDid,
     };
 
     // Issuer Define the disclosure frame to specify which claims can be disclosed
     const disclosureFrame: DisclosureFrame<typeof claims> = {
-      _sd: ['groups', 'id'],
+      _sd: ['group', 'roles', 'id'],
     };
 
     // Issue a signed JWT credential with the specified claims and disclosures
@@ -148,7 +149,7 @@ export class SDJwtVCService {
 
   async validateAndDecodeCredential(credential: string, nonce: string) {
     const verified = await this.sdjwt.verify(credential, {
-      requiredClaimKeys: ['groups', 'id'],
+      requiredClaimKeys: ['group', 'roles', 'id'],
       keyBindingNonce: nonce,
     });
     console.log('verified:', verified);

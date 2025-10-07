@@ -56,16 +56,22 @@ export async function getIssuerRouter(issuer) {
                 url: env.LOGO_URL,
                 alt_text: `${env.ISSUER_NAME} Logo`,
               },
-              description: `A credential that holds the groups you have access to in ${env.PROJECT_NAME}`,
+              description: `A credential that holds your access rights in ${env.PROJECT_NAME}`,
               background_color: env.CARD_BACKGROUND_COLOR,
               text_color: env.CARD_TEXT_COLOR,
             },
           ],
           claims: {
             // repeated for older specs
-            groups: {
+            group: {
               en: {
-                name: 'Groups',
+                name: 'Group',
+                locale: 'en-US',
+              },
+            },
+            roles: {
+              en: {
+                name: 'Roles',
                 locale: 'en-US',
               },
             },
@@ -88,17 +94,26 @@ export async function getIssuerRouter(issuer) {
                   url: env.LOGO_URL,
                   alt_text: `${env.ISSUER_NAME} Logo`,
                 },
-                description: `A credential that holds the groups you have access to in ${env.PROJECT_NAME}`,
+                description: `A credential that holds your access rights in ${env.PROJECT_NAME}`,
                 background_color: env.CARD_BACKGROUND_COLOR,
                 text_color: env.CARD_TEXT_COLOR,
               },
             ],
             claims: [
               {
-                path: ['groups'],
+                path: ['group'],
                 display: [
                   {
-                    name: 'Groups',
+                    name: 'Group',
+                    locale: 'en-US',
+                  },
+                ],
+              },
+              {
+                path: ['roles'],
+                display: [
+                  {
+                    name: 'Roles',
                     locale: 'en-US',
                   },
                 ],
@@ -142,8 +157,13 @@ export async function getIssuerRouter(issuer) {
       name: env.CREDENTIAL_NAME,
       claims: [
         {
-          path: 'groups',
-          display: { name: 'Groups', locale: 'en-US' },
+          path: 'group',
+          display: { name: 'Group', locale: 'en-US' },
+          sd: 'allowed',
+        },
+        {
+          path: 'roles',
+          display: { name: 'Roles', locale: 'en-US' },
           sd: 'allowed',
         },
         {
@@ -156,7 +176,7 @@ export async function getIssuerRouter(issuer) {
         {
           lang: 'en',
           name: env.CREDENTIAL_NAME,
-          description: `A credential that holds the groups you have access to in ${env.PROJECT_NAME}`,
+          description: `A credential that holds your access rights in ${env.PROJECT_NAME}`,
           rendering: {
             simple: {
               background_color: env.CARD_BACKGROUND_COLOR,
@@ -174,7 +194,10 @@ export async function getIssuerRouter(issuer) {
         $schema: 'https://json-schema.org/draft/2020-12/schema',
         type: 'object',
         properties: {
-          groups: {
+          group: {
+            type: 'string',
+          },
+          roles: {
             type: 'string',
           },
           id: {

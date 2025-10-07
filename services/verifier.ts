@@ -154,17 +154,17 @@ export class VCVerifier {
     const dcqlQuery = {
       credentials: [
         {
-          id: 'groups_credential', // this string can be anything, it's just an identifier to refer to this credential set in the credential_sets section
+          id: 'roles_credential', // this string can be anything, it's just an identifier to refer to this credential set in the credential_sets section
           format: 'dc+sd-jwt',
           meta: {
             vct_values: [env.ISSUER_URL],
           },
-          claims: [{ path: ['groups'] }, { path: ['id'] }],
+          claims: [{ path: ['group'] }, { path: ['roles'] }, { path: ['id'] }],
         },
       ],
       credential_sets: [
         {
-          options: [['groups_credential']],
+          options: [['roles_credential']],
           purpose:
             'We require these credentials to verify your decide group memberships.',
         },
@@ -238,11 +238,11 @@ export class VCVerifier {
         // we could verify the audience here if we wanted to be sure it's meant for us
       },
     );
-    const vp_token = payload.vp_token as { groups_credential?: string };
-    if (!vp_token?.groups_credential) {
-      throw new Error('No groups_credential in vp_token');
+    const vp_token = payload.vp_token as { roles_credential?: string };
+    if (!vp_token?.roles_credential) {
+      throw new Error('No roles_credential in vp_token');
     }
-    const credential = vp_token.groups_credential;
+    const credential = vp_token.roles_credential;
 
     console.log('payload:', payload);
     console.log('protectedHeader:', protectedHeader);
