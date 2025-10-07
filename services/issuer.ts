@@ -1,7 +1,5 @@
-import jsonld from 'jsonld';
 import * as jose from 'jose';
-
-import * as vc from '@digitalbazaar/vc';
+import jsonld from 'jsonld';
 
 // Required to set up a suite instance with private key
 import * as didJwk from '@digitalbazaar/did-method-jwk';
@@ -11,17 +9,17 @@ import { Ed25519Signature2020 } from '@digitalbazaar/ed25519-signature-2020';
 import { Ed25519VerificationKey2020 } from '@digitalbazaar/ed25519-verification-key-2020';
 import { securityLoader } from '@digitalbazaar/security-document-loader';
 import { updateSudo } from '@lblod/mu-auth-sudo';
-import { randomBytes, randomUUID } from 'crypto';
 import * as crypto from 'crypto';
+import { randomBytes } from 'crypto';
 import {
   sparqlEscapeDateTime,
   sparqlEscapeString,
   sparqlEscapeUri,
   uuid,
 } from 'mu';
-import { SDJwtVCService } from './sd-jwt-vc';
 import { resolveDid } from '../utils/crypto';
 import env from '../utils/environment';
+import { SDJwtVCService } from './sd-jwt-vc';
 
 export class VCIssuer {
   ready = false;
