@@ -21,7 +21,6 @@ const environment = {
   ISSUER_PUBLIC_KEY: process.env.ISSUER_PUBLIC_KEY,
   ISSUER_PRIVATE_KEY: process.env.ISSUER_PRIVATE_KEY,
   ISSUER_NAME: process.env.ISSUER_NAME || `${PROJECT_NAME} OID4VC Issuer`,
-  ISSUER_SERVICE_PATH: process.env.ISSUER_SERVICE_PATH || 'vc-issuer',
   ISSUER_URL,
   LOGO_URL: process.env.logo_URL || `${ISSUER_URL}/assets/logo.png`,
   NO_DID_PREFIX: process.env.NO_DID_PREFIX === 'true', // because of old spec versions, some wallets break without this
@@ -30,7 +29,6 @@ const environment = {
   TOKEN_TTL: parseInt(process.env.TOKEN_TTL || '86400'), // 24 hours
   VERIFIER_DID: process.env.VERIFIER_DID,
   VERIFIER_KEY_ID: process.env.VERIFIER_KEY_ID,
-  VERIFIER_SERVICE_PATH: process.env.VERIFIER_SERVICE_PATH || 'vc-verifier',
   VERIFIER_URL,
 };
 

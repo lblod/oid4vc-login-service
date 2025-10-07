@@ -19,7 +19,7 @@ export class VCVerifier {
 
   async buildAuthorizationRequestUri(session: string) {
     const clientId = this.buildClientId();
-    const requestUri = `${env.VERIFIER_URL}/${env.VERIFIER_SERVICE_PATH}/authorization-request?original-session=${encodeURIComponent(session)}`;
+    const requestUri = `${env.VERIFIER_URL}/authorization-request?original-session=${encodeURIComponent(session)}`;
     const authorizationRequestUri = `openid4vp://?request_uri=${encodeURIComponent(requestUri)}&client_id=${encodeURIComponent(clientId)}`;
     await this.removeAllAuthorizationRequestsForSession(session);
     await this.createPendingAuthorizationRequest(session);
@@ -176,7 +176,7 @@ export class VCVerifier {
     const payload = {
       response_type: 'vp_token',
       client_id: clientId,
-      response_uri: `${env.VERIFIER_URL}/${env.VERIFIER_SERVICE_PATH}/presentation-response?original-session=${encodeURIComponent(originalSession)}`,
+      response_uri: `${env.VERIFIER_URL}/presentation-response?original-session=${encodeURIComponent(originalSession)}`,
       response_mode: 'direct_post.jwt',
       nonce,
       dcql_query: dcqlQuery,

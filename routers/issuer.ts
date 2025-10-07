@@ -19,10 +19,10 @@ export async function getIssuerRouter(issuer) {
     // we can send signed metadata, but we are required to send unsigned for sure, let's start with that
     const issuerUrl = env.ISSUER_URL;
     res.send({
-      credential_issuer: issuerUrl,
-      authorization_servers: [issuerUrl], // so we also act as an authorization server, should be the default
-      credential_endpoint: `${issuerUrl}/${env.ISSUER_SERVICE_PATH}/credential`,
-      nonce_endpoint: `${issuerUrl}/${env.ISSUER_SERVICE_PATH}/nonce`,
+      credential_issuer: `${issuerUrl}`,
+      authorization_servers: [`${issuerUrl}`], // so we also act as an authorization server, should be the default
+      credential_endpoint: `${issuerUrl}/credential`,
+      nonce_endpoint: `${issuerUrl}/nonce`,
       display: [
         {
           name: env.ISSUER_NAME,
@@ -125,8 +125,8 @@ export async function getIssuerRouter(issuer) {
     res.send({
       issuer: issuerUrl,
       scopes_supported: [env.CREDENTIAL_TYPE],
-      authorization_endpoint: `${issuerUrl}/${env.ISSUER_SERVICE_PATH}/authorize`, // we don't have this yet, we don't have grant types that require it
-      token_endpoint: `${issuerUrl}/${env.ISSUER_SERVICE_PATH}/token`,
+      authorization_endpoint: `${issuerUrl}/authorize`, // we don't have this yet, we don't have grant types that require it
+      token_endpoint: `${issuerUrl}/token`,
       response_types_supported: ['code'],
       grant_types_supported: [
         'urn:ietf:params:oauth:grant-type:pre-authorized_code',
