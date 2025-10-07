@@ -7,6 +7,7 @@ import {
   getPrivateKeyAsCryptoKey,
 } from '../utils/crypto';
 import { SDJwtVCService } from './sd-jwt-vc';
+import env from '../utils/environment';
 
 const EPHEMERAL_KEY_TTL = 10 * 60 * 1000; // 10 minutes
 export class VCVerifier {
@@ -18,9 +19,8 @@ export class VCVerifier {
   }
 
   async buildAuthorizationRequestUri(session: string) {
-    //const clientId = `decentralized_identifier:${process.env.ISSUER_DID}`; // TODO older spec doesn't use a prefix and using it breaks paradym
-    const clientId = `${process.env.ISSUER_DID}`;
-    const requestUri = `${process.env.ISSUER_URL}/vc-issuer/authorization-request?original-session=${encodeURIComponent(session)}`; // TODO change to verifier? we're both atm
+    const clientId = this.buildClientId();
+    const requestUri = `${env.VERIFIER_URL}/${env.VERIFIER_SERVICE_PATH}/authorization-request?original-session=${encodeURIComponent(session)}`;
     const authorizationRequestUri = `openid4vp://?request_uri=${encodeURIComponent(requestUri)}&client_id=${encodeURIComponent(clientId)}`;
     await this.removeAllAuthorizationRequestsForSession(session);
     await this.createPendingAuthorizationRequest(session);
@@ -28,6 +28,15 @@ export class VCVerifier {
     return {
       authorizationRequestUri,
     };
+  }
+
+  buildClientId() {
+    let clientId = `decentralized_identifier:${env.VERIFIER_DID}`;
+    // because of old spec versions, some wallets break without this
+    if (env.NO_DID_PREFIX) {
+      clientId = env.VERIFIER_DID;
+    }
+    return clientId;
   }
 
   async createPendingAuthorizationRequest(session: string) {
@@ -40,6 +49,7 @@ export class VCVerifier {
       INSERT DATA {
         GRAPH <http://mu.semte.ch/graphs/decide/verifier> {
           ${sparqlEscapeUri(uri)} a ext:AuthorizationRequest ;
+            ext:verifierUrl ${sparqlEscapeString(env.VERIFIER_URL)} ;
             ext:session ${sparqlEscapeUri(session)} ;
             ext:status "pending" ;
             dct:modified ${sparqlEscapeDateTime(new Date())} ;
@@ -58,6 +68,7 @@ export class VCVerifier {
       } WHERE {
         GRAPH <http://mu.semte.ch/graphs/decide/verifier> {
           ?authRequest a ext:AuthorizationRequest ;
+            ext:verifierUrl ${sparqlEscapeString(env.VERIFIER_URL)} ;
             ext:session ${sparqlEscapeUri(session)} ;
             ?p ?o .
         }
@@ -71,6 +82,7 @@ export class VCVerifier {
       SELECT ?status WHERE {
         GRAPH <http://mu.semte.ch/graphs/decide/verifier> {
           ?authRequest a ext:AuthorizationRequest ;
+            ext:verifierUrl ${sparqlEscapeString(env.VERIFIER_URL)} ;
             ext:session ${sparqlEscapeUri(session)} ;
             ext:status ?status .
         }
@@ -99,6 +111,7 @@ export class VCVerifier {
       } WHERE {
         GRAPH <http://mu.semte.ch/graphs/decide/verifier> {
           ?authRequest a ext:AuthorizationRequest ;
+            ext:verifierUrl ${sparqlEscapeString(env.VERIFIER_URL)} ;
             ext:session ${sparqlEscapeUri(session)} ;
             dct:modified ?oldMod ;
             ext:status ?oldStatus .
@@ -122,30 +135,29 @@ export class VCVerifier {
     const dcqlQuery = {
       credentials: [
         {
-          id: 'decide_credential', // this string can be anything, it's just an identifier to refer to this credential set in the credential_sets section
+          id: 'groups_credential', // this string can be anything, it's just an identifier to refer to this credential set in the credential_sets section
           format: 'dc+sd-jwt',
           meta: {
-            vct_values: [process.env.ISSUER_URL],
+            vct_values: [env.ISSUER_URL],
           },
-          claims: [{ path: ['decideGroups'] }, { path: ['id'] }],
+          claims: [{ path: ['groups'] }, { path: ['id'] }],
         },
       ],
       credential_sets: [
         {
-          options: [['decide_credential']],
+          options: [['groups_credential']],
           purpose:
             'We require these credentials to verify your decide group memberships.',
         },
       ],
     };
-    //const clientId = `decentralized_identifier:${process.env.ISSUER_DID}`; // TODO older spec doesn't use a prefix and using it breaks paradym
-    const clientId = `${process.env.ISSUER_DID}`;
+    const clientId = this.buildClientId();
     const nonce = Crypto.randomBytes(16).toString('base64url');
     const ephemeralKey = await createEphemeralKeyPair();
     const payload = {
       response_type: 'vp_token',
       client_id: clientId,
-      response_uri: `${process.env.ISSUER_URL}/vc-issuer/presentation-response?original-session=${encodeURIComponent(originalSession)}`, // TODO change to verifier? we're both atm
+      response_uri: `${env.VERIFIER_URL}/${env.VERIFIER_SERVICE_PATH}/presentation-response?original-session=${encodeURIComponent(originalSession)}`,
       response_mode: 'direct_post.jwt',
       nonce,
       dcql_query: dcqlQuery,
@@ -153,8 +165,8 @@ export class VCVerifier {
       iat: Math.floor(Date.now() / 1000),
       exp: Math.floor(Date.now() / 1000) + 600, // 10 minutes
       client_metadata: {
-        client_name: 'Decide VC Verifier',
-        logo_uri: `${process.env.ISSUER_URL}/assets/logo.png`,
+        client_name: `${env.PROJECT_NAME} VC Verifier`,
+        logo_uri: env.LOGO_URL,
         jwks: {
           // we could in theory add multiple jwks here to support multiple algorithms, no need now
           // no need to have multiple keys for key rotation because we generate a key per client
@@ -176,16 +188,15 @@ export class VCVerifier {
     const request = await new jose.SignJWT(payload)
       .setProtectedHeader({
         alg: 'EdDSA',
-        kid: process.env.ISSUER_KEY_ID as string,
-        iss: process.env.ISSUER_DID, // TODO separate issuer did?
+        kid: env.VERIFIER_KEY_ID,
+        iss: env.VERIFIER_DID,
         typ: 'oauth-authz-req+jwt',
       })
-      .sign(getPrivateKeyAsCryptoKey()); // TODO cache?
+      .sign(getPrivateKeyAsCryptoKey());
 
     await this.updateAuthorizationRequestStatus(originalSession, 'received');
 
     return request;
-    // TODO not great. if they have the session they can generate a request... do we mind?
   }
 
   async handlePresentationResponse(
@@ -208,11 +219,11 @@ export class VCVerifier {
         // we could verify the audience here if we wanted to be sure it's meant for us
       },
     );
-    const vp_token = payload.vp_token as { decide_credential?: string };
-    if (!vp_token?.decide_credential) {
-      throw new Error('No decide_credential in vp_token');
+    const vp_token = payload.vp_token as { groups_credential?: string };
+    if (!vp_token?.groups_credential) {
+      throw new Error('No groups_credential in vp_token');
     }
-    const credential = vp_token.decide_credential;
+    const credential = vp_token.groups_credential;
 
     console.log('payload:', payload);
     console.log('protectedHeader:', protectedHeader);
@@ -258,6 +269,7 @@ export class VCVerifier {
       INSERT DATA {
         GRAPH <http://mu.semte.ch/graphs/decide/verifier> {
           ${sparqlEscapeUri(uri)} a ext:AuthorizationRequestEphemeralKey ;
+            ext:verifierUrl ${sparqlEscapeString(env.VERIFIER_URL)} ;
             ext:session ${sparqlEscapeUri(session)} ;
             ext:nonce ${sparqlEscapeString(nonce)} ;
             ext:ephemeralPrivateKey ${sparqlEscapeString(JSON.stringify(privateJwk))} ;
@@ -277,6 +289,7 @@ export class VCVerifier {
       } WHERE {
         GRAPH <http://mu.semte.ch/graphs/decide/verifier> {
           ?authRequest a ext:AuthorizationRequestEphemeralKey ;
+            ext:verifierUrl ${sparqlEscapeString(env.VERIFIER_URL)} ;
             ext:session ${sparqlEscapeUri(session)} ;
             ext:ephemeralPrivateKey ?privateKey .
         }
@@ -291,6 +304,7 @@ export class VCVerifier {
       SELECT ?nonce ?privateKey WHERE {
         GRAPH <http://mu.semte.ch/graphs/decide/verifier> {
           ?authRequest a ext:AuthorizationRequestEphemeralKey ;
+            ext:verifierUrl ${sparqlEscapeString(env.VERIFIER_URL)} ;
             ext:session ${sparqlEscapeUri(session)} ;
             ext:nonce ?nonce ;
             dct:created ?created ;

@@ -11,6 +11,7 @@ import {
   getPrivateKeyAsCryptoKey,
   getPublicKeyAsCryptoKey,
 } from '../utils/crypto';
+import env from '../utils/environment';
 
 const createSignerVerifier = () => {
   const privateKey = getPrivateKeyAsCryptoKey();
@@ -82,23 +83,22 @@ export class SDJwtVCService {
   async buildCredential(ownerDid: string, jwk) {
     // Issuer Define the claims object with the user's information
     const claims = {
-      decideGroups: 'Foo,Bar,Baz',
-      otherProjectGroups: 'Qux,Quux',
+      groups: 'Foo,Bar,Baz',
       id: ownerDid,
     };
 
     // Issuer Define the disclosure frame to specify which claims can be disclosed
     const disclosureFrame: DisclosureFrame<typeof claims> = {
-      _sd: ['decideGroups', 'otherProjectGroups', 'id'],
+      _sd: ['groups', 'id'],
     };
 
     // Issue a signed JWT credential with the specified claims and disclosures
     // Return a Encoded SD JWT. Issuer send the credential to the holder
     const credential = await this.sdjwt.issue(
       {
-        iss: process.env.ISSUER_DID,
+        iss: env.ISSUER_DID,
         iat: Math.floor(Date.now() / 1000),
-        vct: process.env.ISSUER_URL,
+        vct: env.ISSUER_URL,
         cnf: {
           jwk,
         },
@@ -107,7 +107,7 @@ export class SDJwtVCService {
       disclosureFrame,
       {
         header: {
-          kid: process.env.ISSUER_KEY_ID as string,
+          kid: env.ISSUER_KEY_ID as string,
         },
       },
     );
@@ -148,7 +148,7 @@ export class SDJwtVCService {
 
   async validateAndDecodeCredential(credential: string, nonce: string) {
     const verified = await this.sdjwt.verify(credential, {
-      requiredClaimKeys: ['decideGroups', 'id'],
+      requiredClaimKeys: ['groups', 'id'],
       keyBindingNonce: nonce,
     });
     console.log('verified:', verified);

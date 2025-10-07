@@ -92,33 +92,51 @@ function publicKeyDerEncode({ publicKeyBytes }) {
   return Buffer.concat([DER_PUBLIC_KEY_PREFIX, publicKeyBytes]);
 }
 
+let privateKeyAsCryptoKey: Crypto.KeyObject | null = null;
+
 export function getPrivateKeyAsCryptoKey() {
-  return Crypto.createPrivateKey({
+  if (privateKeyAsCryptoKey) {
+    return privateKeyAsCryptoKey;
+  }
+  privateKeyAsCryptoKey = Crypto.createPrivateKey({
     key: privateKeyDerEncode({
       privateKeyBytes: getPrivateKeyBuffer(process.env.ISSUER_PRIVATE_KEY),
     }),
     format: 'der',
     type: 'pkcs8',
   });
+  return privateKeyAsCryptoKey;
 }
 
+let publicKeyAsCryptoKey: Crypto.KeyObject | null = null;
+
 export function getPublicKeyAsCryptoKey() {
-  return Crypto.createPublicKey({
+  if (publicKeyAsCryptoKey) {
+    return publicKeyAsCryptoKey;
+  }
+  publicKeyAsCryptoKey = Crypto.createPublicKey({
     key: publicKeyDerEncode({
       publicKeyBytes: getPublicKeyBuffer(process.env.ISSUER_PUBLIC_KEY),
     }),
     format: 'der',
     type: 'spki',
   });
+  return publicKeyAsCryptoKey;
 }
 
+let publicKeyAsJwk: JsonWebKey | null = null;
+
 export function getPublicKeyAsJwk() {
+  if (publicKeyAsJwk) {
+    return publicKeyAsJwk;
+  }
   const publicKeyBytes = getPublicKeyBuffer(process.env.ISSUER_PUBLIC_KEY);
-  return {
+  publicKeyAsJwk = {
     kty: 'OKP',
     crv: 'Ed25519',
     x: Buffer.from(publicKeyBytes).toString('base64url'),
   };
+  return publicKeyAsJwk;
 }
 
 const webResolver = getWebResolver();

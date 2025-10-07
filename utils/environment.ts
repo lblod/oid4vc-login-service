@@ -1,25 +1,45 @@
 const ISSUER_URL = process.env.ISSUER_URL || 'http://localhost:3000';
+const VERIFIER_URL = process.env.VERIFIER_URL || ISSUER_URL;
 const PROJECT_NAME = process.env.PROJECT_NAME || 'Decide';
 
 const environment = {
-  PROJECT_NAME,
-  ISSUER_NAME: process.env.ISSUER_NAME || `${PROJECT_NAME} OID4VC Issuer`,
-  ISSUER_SERVICE_PATH: process.env.ISSUER_SERVICE_PATH || 'vc-issuer',
-  VERIFIER_SERVICE_PATH: process.env.VERIFIER_SERVICE_PATH || 'vc-verifier',
-  ISSUER_URL,
-  LOGO_URL: process.env.logo_URL || `${ISSUER_URL}/assets/logo.png`,
+  AUTH_CODE_TTL: parseInt(process.env.AUTH_CODE_TTL || '60000'), // 10 minutes
   CARD_BACKGROUND_COLOR: process.env.CARD_BACKGROUND_COLOR || '#12107c',
   CARD_TEXT_COLOR: process.env.CARD_TEXT_COLOR || '#FFFFFF',
-  CREDENTIAL_TYPE: process.env.CREDENTIAL_TYPE || `${PROJECT_NAME}Roles`,
   CREDENTIAL_NAME:
     process.env.CREDENTIAL_NAME || `${PROJECT_NAME} Roles Credential`,
-  SINGLE_CREDENTIAL_RESPONSE: process.env.SINGLE_CREDENTIAL_RESPONSE === 'true', // because of old spec versions, some wallets break without this
+
+  CREDENTIAL_TYPE: process.env.CREDENTIAL_TYPE || `${PROJECT_NAME}Roles`,
   CREDENTIAL_URI_BASE:
     process.env.CREDENTIAL_URI_BASE || `${ISSUER_URL}/credentials/`,
-  AUTH_CODE_TTL: parseInt(process.env.AUTH_CODE_TTL || '60000'), // 10 minutes
+  ISSUER_DID: process.env.ISSUER_DID,
+  ISSUER_KEY_ID: process.env.ISSUER_KEY_ID,
+  ISSUER_NAME: process.env.ISSUER_NAME || `${PROJECT_NAME} OID4VC Issuer`,
+  ISSUER_SERVICE_PATH: process.env.ISSUER_SERVICE_PATH || 'vc-issuer',
+  ISSUER_URL,
+  LOGO_URL: process.env.logo_URL || `${ISSUER_URL}/assets/logo.png`,
+  NO_DID_PREFIX: process.env.NO_DID_PREFIX === 'true', // because of old spec versions, some wallets break without this
+  PROJECT_NAME,
+  SINGLE_CREDENTIAL_RESPONSE: process.env.SINGLE_CREDENTIAL_RESPONSE === 'true', // because of old spec versions, some wallets break without this
   TOKEN_TTL: parseInt(process.env.TOKEN_TTL || '86400'), // 24 hours
+  VERIFIER_DID: process.env.VERIFIER_DID,
+  VERIFIER_KEY_ID: process.env.VERIFIER_KEY_ID,
+  VERIFIER_SERVICE_PATH: process.env.VERIFIER_SERVICE_PATH || 'vc-verifier',
+  VERIFIER_URL,
 };
 
 console.log('Environment:', JSON.stringify(environment, null, 2));
+const requiredVars = [
+  'ISSUER_DID',
+  'ISSUER_KEY_ID',
+  'VERIFIER_DID',
+  'VERIFIER_KEY_ID',
+];
+for (const varName of requiredVars) {
+  if (!environment[varName as keyof typeof environment]) {
+    console.error(`Error: ${varName} environment variable is not set`);
+    process.exit(1);
+  }
+}
 
 export default environment;
