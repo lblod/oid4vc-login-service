@@ -2,9 +2,9 @@ import bodyParser from 'body-parser';
 import { app } from 'mu';
 
 // Required to set up a suite instance with private key
-import { VCIssuer } from './services/issuer-service';
+import { VCIssuer } from './services/issuer';
 import { SDJwtVCService } from './services/sd-jwt-vc';
-import { VCVerifier } from './services/verifier-service';
+import { VCVerifier } from './services/verifier';
 import { getIssuerRouter } from './routers/issuer';
 import { getVerifierRouter } from './routers/verifier';
 
@@ -25,7 +25,7 @@ app.use('/', function (req, res, next) {
 
 app.get('/status', function (req, res) {
   res.send({
-    service: 'vc-issuer-service',
+    service: 'verifiable-credentials-service',
     status: 'ok',
   });
 });
@@ -43,15 +43,9 @@ async function setup() {
     publicKey: process.env.ISSUER_PUBLIC_KEY as string,
     privateKey: process.env.ISSUER_PRIVATE_KEY as string,
   });
-
-  verifier
-    .setup({
-      sdJwtService: sdJwtService,
-    })
-    .catch((e) => {
-      console.error('Error setting up verifier', e);
-      process.exit(1);
-    });
+  await verifier.setup({
+    sdJwtService: sdJwtService,
+  });
 }
 setup()
   .catch((e) => {

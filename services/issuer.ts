@@ -21,6 +21,7 @@ import {
 } from 'mu';
 import { SDJwtVCService } from './sd-jwt-vc';
 import { resolveDid } from '../utils/crypto';
+import env from '../utils/environment';
 
 export class VCIssuer {
   ready = false;
@@ -85,74 +86,17 @@ export class VCIssuer {
 
   // jwk is the public key that corresponds to the did (we already resolved it during verification, so let's not do so again)
   async issueCredential(holderDid: string, jwk) {
-    // TODO ldpvc has no support atm
-    return this.issueCredentialSdJwtVc(holderDid, jwk);
-  }
-
-  // for demo purposes for now, we will need to issue a credential containing the roles in the data space
-  async issueCredentialLdpVc(holderDid: string) {
-    // Sample unsigned credential
-    const credentialBase =
-      process.env.CREDENTIAL_URI_BASE || 'http://localhost/credential/';
-    const credentialUri = `${credentialBase}${randomUUID()}`;
-    const credential = {
-      '@context': [
-        'https://www.w3.org/2018/credentials/v1',
-        'https://www.w3.org/2018/credentials/examples/v1',
-      ],
-      id: credentialUri,
-      type: ['VerifiableCredential', 'AlumniCredential'],
-      issuer: this.issuerDid,
-      issuanceDate: new Date().toISOString(),
-      credentialSubject: {
-        id: holderDid,
-        alumniOf: 'Example University',
-      },
-    };
-    const signedVC = await vc.issue({
-      credential,
-      suite: this.suite,
-      documentLoader: this.documentLoader,
-    });
-
-    // normally you'd verify the presentation, but let's already verify the credential
-    const verificationResult = await this.verifyLdpCredential(signedVC);
-    console.log(verificationResult);
-
-    return signedVC;
-  }
-
-  async issueCredentialSdJwtVc(holderDid: string, jwk) {
     return this.sdJwtService.buildCredential(holderDid, jwk);
   }
 
-  // for demo purposes, normally the verifier would do this
-  // ignore ts for now as vc library does not have types support
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  async verifyLdpCredential(signedVC: any) {
-    const verificationResult = await vc.verifyCredential({
-      credential: signedVC,
-      suite: this.suite,
-      documentLoader: this.documentLoader,
-    });
-
-    return verificationResult;
-  }
   async buildCredentialOfferUri(sessionUri: string) {
-    // const pin = randomInt(0, 9999);
-    const randomUuid = crypto.randomUUID(); // this one is important to use proper random libs though
+    const randomUuid = crypto.randomUUID(); // use proper random algorithm instead of mu version
     const credentialOffer = {
-      credential_issuer: process.env.ISSUER_URL as string,
-      credential_configuration_ids: [`${process.env.CREDENTIAL_TYPE}_sd_jwt`],
+      credential_issuer: env.ISSUER_URL as string,
+      credential_configuration_ids: [`${env.CREDENTIAL_TYPE}_sd_jwt`],
       grants: {
         'urn:ietf:params:oauth:grant-type:pre-authorized_code': {
           'pre-authorized_code': randomUuid,
-          // tx_code: {
-          //   // might be better to leave this out entirely as we won't be mailing it
-          //   length: 4,
-          //   input_mode: 'numeric',
-          //   description: 'Enter the 4-digit code shown on your screen', // we should send by mail/text message in a real example to have multiple channels
-          // },
         },
       },
     };
@@ -182,16 +126,11 @@ export class VCIssuer {
   }
 
   credentialTokenUriPrefix = 'http://data.lblod.info/credential-offer-token/';
-  authCodeTTL = parseInt(process.env.AUTH_CODE_TTL || '60000'); // 1min
-  tokenTTL = parseInt(process.env.TOKEN_TTL || '86400'); // 24h
+  authCodeTTL = env.AUTH_CODE_TTL;
+  tokenTTL = env.TOKEN_TTL;
 
-  async storeCredentialOfferAuthCode(token, sessionUri, pinCode?: number) {
+  async storeCredentialOfferAuthCode(token, sessionUri) {
     const tokenUri = `${this.credentialTokenUriPrefix}${token}`;
-    let pinCodeData = '';
-    if (pinCode !== undefined) {
-      const paddedPinCode = ('0000' + pinCode).slice(-4);
-      pinCodeData = `ext:pinCode ${sparqlEscapeString(paddedPinCode)} ;`;
-    }
 
     await updateSudo(`
       PREFIX ext: <http://mu.semte.ch/vocabularies/ext/>
@@ -201,19 +140,15 @@ export class VCIssuer {
       INSERT DATA {
         GRAPH <http://mu.semte.ch/graphs/verifiable-credential-tokens> {
           ${sparqlEscapeUri(tokenUri)} a ext:CredentialOfferAuthCode ;
+            ext:issuerUrl ${sparqlEscapeString(env.ISSUER_URL)} ;
             mu:uuid ${sparqlEscapeString(token)} ;
             ext:session ${sparqlEscapeUri(sessionUri)} ;
-            ${pinCodeData}
             dct:created ${sparqlEscapeDateTime(new Date())} .
         }
       }`);
   }
 
-  async getSessionForAuthCode(token, pinCode?: string) {
-    let pinCodeCheck = 'FILTER NOT EXISTS { ?token ext:pinCode ?pinCode . }';
-    if (pinCode) {
-      pinCodeCheck = `?token ext:pinCode ${sparqlEscapeString(pinCode)} .`;
-    }
+  async getSessionForAuthCode(token) {
     const result = await updateSudo(`
       PREFIX ext: <http://mu.semte.ch/vocabularies/ext/>
       PREFIX mu: <http://mu.semte.ch/vocabularies/core/>
@@ -222,17 +157,17 @@ export class VCIssuer {
       SELECT ?session {
         GRAPH <http://mu.semte.ch/graphs/verifiable-credential-tokens> {
           ?token a ext:CredentialOfferAuthCode .
+          ?token ext:issuerUrl ${sparqlEscapeString(env.ISSUER_URL)} .
           ?token mu:uuid ${sparqlEscapeString(token)} .
           ?token dct:created ?created .
           ?token ext:session ?session .
-          ${pinCodeCheck}
           FILTER(?created > ${sparqlEscapeDateTime(new Date(Date.now() - this.authCodeTTL))})
         }
       } LIMIT 1`);
     return result.results.bindings[0]?.session.value;
   }
 
-  async deleteCredentialOfferAuthCode(token) {
+  async deleteOldCredentialAuthCodes() {
     await updateSudo(`
       DELETE {
         GRAPH ?g {
@@ -240,8 +175,10 @@ export class VCIssuer {
         }
       } WHERE {
         GRAPH ?g {
-          ?token a ext:CredentialOfferAuthCode ;
-          ?token mu:uuid ${token} ;
+          ?token a ext:CredentialOfferAuthCode .
+          ?token ext:issuerUrl ${sparqlEscapeString(env.ISSUER_URL)} .
+          ?token dct:created ?created .
+          FILTER(?created < ${sparqlEscapeDateTime(new Date(Date.now() - this.authCodeTTL))})
           ?token ?p ?o.
         }
       }`);
@@ -265,6 +202,7 @@ export class VCIssuer {
       INSERT DATA {
         GRAPH <http://mu.semte.ch/graphs/verifiable-credential-tokens> {
           ${sparqlEscapeUri(tokenUri)} a ext:CredentialOfferToken ;
+            ext:issuerUrl ${sparqlEscapeString(env.ISSUER_URL)} ;
             mu:uuid ${sparqlEscapeString(id)} ;
             ext:authToken ${sparqlEscapeString(token)} ;
             ext:session ${sparqlEscapeUri(sessionUri)} ;
@@ -282,6 +220,7 @@ export class VCIssuer {
       SELECT ?session ?group ?role {
         GRAPH <http://mu.semte.ch/graphs/verifiable-credential-tokens> {
           ?token a ext:CredentialOfferToken .
+          ?token ext:issuerUrl ${sparqlEscapeString(env.ISSUER_URL)} .
           ?token ext:authToken ${sparqlEscapeString(token)} .
           ?token ext:session ?session .
           ?token dct:created ?created .
@@ -294,7 +233,7 @@ export class VCIssuer {
     return result;
   }
 
-  async deleteCredentialOfferToken(token) {
+  async deleteOldCredentialOfferTokens() {
     await updateSudo(`
       DELETE {
         GRAPH ?g {
@@ -303,21 +242,22 @@ export class VCIssuer {
       } WHERE {
         GRAPH ?g {
           ?token a ext:CredentialOfferToken .
-          ?token mu:uuid ${token} .
+          ?token ext:issuerUrl ${sparqlEscapeString(env.ISSUER_URL)} .
+          ?token dct:created ?created .
+          FILTER(?created < ${sparqlEscapeDateTime(new Date(Date.now() - this.tokenTTL))})
           ?token ?p ?o.
         }
       }`);
   }
 
   async generateNonce() {
-    // we just generate a random nonce for now, we should store and verify it to protect against replay attacks
+    // TODO store and check nonce. we just generate a random nonce for now, we should store and verify it to protect against replay attacks
     return randomBytes(16).toString('hex');
   }
 
   async validateProofAndGetHolderDid(jwt: string) {
     const [jwtHeader] = jwt.split('.');
     const decodedJwtHeader = JSON.parse(atob(jwtHeader));
-    // todo we should validate the proof, but for now let's trust it
     const did = decodedJwtHeader.kid;
     if (!did || !did.startsWith('did:')) {
       throw new Error('invalid_proof');

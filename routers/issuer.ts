@@ -1,4 +1,5 @@
 import Router from 'express-promise-router';
+import env from '../utils/environment';
 
 export async function getIssuerRouter(issuer) {
   const router = Router();
@@ -15,28 +16,28 @@ export async function getIssuerRouter(issuer) {
   router.get('/issuer_metadata', async function (req, res) {
     // to be configured in the dispatcher, the path is forced to be .well-known/openid-credential-issuer/something/something
     // we can send signed metadata, but we are required to send unsigned for sure, let's start with that
-    const issuerUrl = process.env.ISSUER_URL as string;
+    const issuerUrl = env.ISSUER_URL;
     res.send({
       credential_issuer: issuerUrl,
-      authorization_servers: [`${issuerUrl}`], // so we also act as an authorization server, should be the default
-      credential_endpoint: `${issuerUrl}/vc-issuer/credential`,
-      nonce_endpoint: `${issuerUrl}/vc-issuer/nonce`,
+      authorization_servers: [issuerUrl], // so we also act as an authorization server, should be the default
+      credential_endpoint: `${issuerUrl}/${env.ISSUER_SERVICE_PATH}/credential`,
+      nonce_endpoint: `${issuerUrl}/${env.ISSUER_SERVICE_PATH}/nonce`,
       display: [
         {
-          name: 'Decide Data Space',
+          name: env.ISSUER_NAME,
           locale: 'en-US',
           logo: {
-            uri: `${issuerUrl}/assets/logo.png`,
-            url: `${issuerUrl}/assets/logo.png`,
-            alt_text: 'the square decide logo',
+            uri: env.LOGO_URL,
+            url: env.LOGO_URL,
+            alt_text: `${env.ISSUER_NAME} Logo`,
           },
         },
       ],
       credential_configurations_supported: {
         // this is NOT linked data, which is sad
-        [`${process.env.CREDENTIAL_TYPE}_sd_jwt`]: {
+        [`${env.CREDENTIAL_TYPE}_sd_jwt`]: {
           format: 'vc+sd-jwt', // latest spec actually says dc+sd-jwt
-          scope: 'JWT_VC_DECIDE_ROLES',
+          scope: env.CREDENTIAL_TYPE,
           credential_signing_alg_values_supported: ['EdDSA'], // may need to fall back to ES256?
           cryptographic_binding_methods_supported: ['did:key', 'did:web'], // jwk not supported, we want a did to link to the user
           proof_types_supported: {
@@ -47,30 +48,23 @@ export async function getIssuerRouter(issuer) {
           display: [
             // repeated for older specs
             {
-              name: 'Decide Roles Credential',
+              name: env.CREDENTIAL_NAME,
               locale: 'en-US',
               logo: {
-                uri: `${issuerUrl}/assets/logo.png`, // TODO this is super temporary and ugly, but the app crashes if it's not there
-                url: `${issuerUrl}/assets/logo.png`, // TODO this is super temporary and ugly, but the app crashes if it's not there
-                alt_text: 'the square decide logo',
+                uri: env.LOGO_URL,
+                url: env.LOGO_URL,
+                alt_text: `${env.ISSUER_NAME} Logo`,
               },
-              description:
-                'A credential that holds the groups you have access to in Decide',
-              background_color: '#12107c',
-              text_color: '#FFFFFF',
+              description: `A credential that holds the groups you have access to in ${env.PROJECT_NAME}`,
+              background_color: env.CARD_BACKGROUND_COLOR,
+              text_color: env.CARD_TEXT_COLOR,
             },
           ],
           claims: {
             // repeated for older specs
-            decideGroups: {
+            groups: {
               en: {
-                name: 'Decide Groups',
-                locale: 'en-US',
-              },
-            },
-            otherProjectGroups: {
-              en: {
-                name: 'Other Project Groups',
+                name: 'Groups',
                 locale: 'en-US',
               },
             },
@@ -86,34 +80,24 @@ export async function getIssuerRouter(issuer) {
           credential_metadata: {
             display: [
               {
-                name: 'Decide Roles Credential',
+                name: env.CREDENTIAL_NAME,
                 locale: 'en-US',
                 logo: {
-                  uri: `${issuerUrl}/assets/logo.png`, // TODO this is super temporary and ugly, but the app crashes if it's not there
-                  url: `${issuerUrl}/assets/logo.png`, // TODO this is super temporary and ugly, but the app crashes if it's not there
-                  alt_text: 'the square decide logo',
+                  uri: env.LOGO_URL,
+                  url: env.LOGO_URL,
+                  alt_text: `${env.ISSUER_NAME} Logo`,
                 },
-                description:
-                  'A credential that holds the groups you have access to in Decide',
-                background_color: '#12107c',
-                text_color: '#FFFFFF',
+                description: `A credential that holds the groups you have access to in ${env.PROJECT_NAME}`,
+                background_color: env.CARD_BACKGROUND_COLOR,
+                text_color: env.CARD_TEXT_COLOR,
               },
             ],
             claims: [
               {
-                path: ['decideGroups'],
+                path: ['groups'],
                 display: [
                   {
-                    name: 'Decide Groups',
-                    locale: 'en-US',
-                  },
-                ],
-              },
-              {
-                path: ['otherProjectGroups'],
-                display: [
-                  {
-                    name: 'Other Project Groups',
+                    name: 'Groups',
                     locale: 'en-US',
                   },
                 ],
@@ -135,12 +119,12 @@ export async function getIssuerRouter(issuer) {
   });
 
   router.get('/authorization_metadata', async function (req, res) {
-    const issuerUrl = process.env.ISSUER_URL as string;
+    const issuerUrl = env.ISSUER_URL;
     res.send({
       issuer: issuerUrl,
-      scopes_supported: ['JWT_VC_DECIDE_ROLES'],
-      authorization_endpoint: `${issuerUrl}/authorize`, // we don't have this yet, we don't have grant types that require it
-      token_endpoint: `${issuerUrl}/vc-issuer/token`,
+      scopes_supported: [env.CREDENTIAL_TYPE],
+      authorization_endpoint: `${issuerUrl}/${env.ISSUER_SERVICE_PATH}/authorize`, // we don't have this yet, we don't have grant types that require it
+      token_endpoint: `${issuerUrl}/${env.ISSUER_SERVICE_PATH}/token`,
       response_types_supported: ['code'],
       grant_types_supported: [
         'urn:ietf:params:oauth:grant-type:pre-authorized_code',
@@ -150,17 +134,12 @@ export async function getIssuerRouter(issuer) {
 
   router.get('/vct', function (req, res) {
     res.send({
-      vct: `${process.env.ISSUER_URL}`,
-      name: 'Decide Data Space Roles Credential',
+      vct: `${env.ISSUER_URL}`,
+      name: env.CREDENTIAL_NAME,
       claims: [
         {
-          path: 'decideGroups',
+          path: 'groups',
           display: { name: 'Groups', locale: 'en-US' },
-          sd: 'allowed',
-        },
-        {
-          path: 'otherProjectGroups',
-          display: { name: 'Other Project Groups', locale: 'en-US' },
           sd: 'allowed',
         },
         {
@@ -173,10 +152,7 @@ export async function getIssuerRouter(issuer) {
         $schema: 'https://json-schema.org/draft/2020-12/schema',
         type: 'object',
         properties: {
-          decideGroups: {
-            type: 'string',
-          },
-          otherProjectGroups: {
+          groups: {
             type: 'string',
           },
           id: {
@@ -193,12 +169,8 @@ export async function getIssuerRouter(issuer) {
     if (req.body['pre-authorized_code']) {
       preAuthorizedCode = req.body['pre-authorized_code'] as string;
     }
-    // const transactionCode = req.query.tx_code as string | undefined;
 
-    const sessionUri = await issuer.getSessionForAuthCode(
-      preAuthorizedCode,
-      // transactionCode,
-    );
+    const sessionUri = await issuer.getSessionForAuthCode(preAuthorizedCode);
     if (!sessionUri) {
       res.status(403).send({ error: 'invalid_grant' });
       return;
@@ -211,13 +183,11 @@ export async function getIssuerRouter(issuer) {
       token_type: 'Bearer',
       expires_in: issuer.tokenTTL,
     });
-
-    // TODO we may want to offer a nonce endpoint
   });
 
   router.post('/nonce', async function (req, res) {
     const nonce = await issuer.generateNonce();
-    res.set('Cache-Control', 'no-store');
+    res.set('Cache-Control', 'no-store'); // as per spec
     res.send({
       c_nonce: nonce,
     });
@@ -256,16 +226,25 @@ export async function getIssuerRouter(issuer) {
       return;
     }
     const { did, jwk } = await issuer.validateProofAndGetHolderDid(jwt);
+    console.log('holder did:', did);
+    console.log('holder jwk:', jwk);
 
     const signedVC = await issuer.issueCredential(did, jwk);
     // credential because our wallet follows an old version of the spec
-    res.send({
-      //credentials: [{ credential: signedVC }], // commented as paradym fails with this property present T_T, it is correct according to the spec though
-      credential: signedVC, // for old specs
+    const response = {
       c_nonce: await issuer.generateNonce(), // for old specs
       c_nonce_expires_in: 300, // yeah... it really doesn't, for old specs
       format: 'vc+sd-jwt', // for old specs
-    });
+    };
+
+    // old specs want a single credential, newer specs want an array of credentials. paradym breaks if it receives credentials as an array
+    if (env.SINGLE_CREDENTIAL_RESPONSE) {
+      response['credential'] = signedVC;
+    } else {
+      response['credentials'] = [{ credential: signedVC }];
+    }
+
+    res.send(response);
   });
 
   return router;
