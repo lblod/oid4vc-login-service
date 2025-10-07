@@ -2,7 +2,10 @@ import { querySudo, updateSudo } from '@lblod/mu-auth-sudo';
 import * as jose from 'jose';
 import { sparqlEscapeDateTime, sparqlEscapeString, sparqlEscapeUri } from 'mu';
 import * as Crypto from 'node:crypto';
-import { createEphemeralKeyPair, getPrivateKeyAsCryptoKey } from './crypto';
+import {
+  createEphemeralKeyPair,
+  getPrivateKeyAsCryptoKey,
+} from '../utils/crypto';
 import { SDJwtVCService } from './sd-jwt-vc';
 
 const EPHEMERAL_KEY_TTL = 10 * 60 * 1000; // 10 minutes

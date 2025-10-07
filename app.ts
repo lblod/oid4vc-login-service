@@ -2,12 +2,12 @@ import bodyParser from 'body-parser';
 import { app } from 'mu';
 
 // Required to set up a suite instance with private key
-import Router from 'express-promise-router';
-import { VCIssuer } from './issuer-service';
-import { SDJwtVCService } from './sd-jwt-vc';
-import { VCVerifier } from './verifier-service';
+import { VCIssuer } from './services/issuer-service';
+import { SDJwtVCService } from './services/sd-jwt-vc';
+import { VCVerifier } from './services/verifier-service';
+import { getIssuerRouter } from './routers/issuer';
+import { getVerifierRouter } from './routers/verifier';
 
-const router = Router();
 app.use(
   bodyParser.json({
     limit: '500mb',
@@ -18,12 +18,17 @@ app.use(
   }),
 );
 app.use('/', function (req, res, next) {
-  // mandated by the spec
+  // mandated by the spec, by default we get application/vnd.api+json in the template
   res.type('application/json');
   next();
 });
 
-app.use(router);
+app.get('/status', function (req, res) {
+  res.send({
+    service: 'vc-issuer-service',
+    status: 'ok',
+  });
+});
 
 const issuer = new VCIssuer();
 const verifier = new VCVerifier();
@@ -48,339 +53,14 @@ async function setup() {
       process.exit(1);
     });
 }
-setup().catch((e) => {
-  console.error('Error setting up services', e);
-  process.exit(1);
-});
-
-router.get('/status', function (req, res) {
-  res.send({
-    service: 'vc-issuer-service',
-    status: 'ok',
+setup()
+  .catch((e) => {
+    console.error('Error setting up services', e);
+    process.exit(1);
+  })
+  .then(async () => {
+    const issuerRouter = await getIssuerRouter(issuer);
+    const verifierRouter = await getVerifierRouter(verifier);
+    app.use('/issuer', issuerRouter);
+    app.use('/verifier', verifierRouter);
   });
-});
-
-router.get('/build-credential-offer-uri', async function (req, res) {
-  const sessionUri = req.get('mu-session-id') as string;
-  const { credentialOfferUri } =
-    await issuer.buildCredentialOfferUri(sessionUri);
-  res.send({
-    credentialOfferUri,
-  });
-});
-
-router.get('/issuer_metadata', async function (req, res) {
-  // to be configured in the dispatcher, the path is forced to be .well-known/openid-credential-issuer/something/something
-  // we can send signed metadata, but we are required to send unsigned for sure, let's start with that
-  const issuerUrl = process.env.ISSUER_URL as string;
-  res.send({
-    credential_issuer: issuerUrl,
-    authorization_servers: [`${issuerUrl}`], // so we also act as an authorization server, should be the default
-    credential_endpoint: `${issuerUrl}/vc-issuer/credential`,
-    nonce_endpoint: `${issuerUrl}/vc-issuer/nonce`,
-    display: [
-      {
-        name: 'Decide Data Space',
-        locale: 'en-US',
-        logo: {
-          uri: `${issuerUrl}/assets/logo.png`,
-          url: `${issuerUrl}/assets/logo.png`,
-          alt_text: 'the square decide logo',
-        },
-      },
-    ],
-    credential_configurations_supported: {
-      // this is NOT linked data, which is sad
-      [`${process.env.CREDENTIAL_TYPE}_sd_jwt`]: {
-        format: 'vc+sd-jwt', // latest spec actually says dc+sd-jwt
-        scope: 'JWT_VC_DECIDE_ROLES',
-        credential_signing_alg_values_supported: ['EdDSA'], // may need to fall back to ES256?
-        cryptographic_binding_methods_supported: ['did:key', 'did:web'], // jwk not supported, we want a did to link to the user
-        proof_types_supported: {
-          jwt: {
-            proof_signing_alg_values_supported: ['ES256'],
-          },
-        },
-        display: [
-          // repeated for older specs
-          {
-            name: 'Decide Roles Credential',
-            locale: 'en-US',
-            logo: {
-              uri: `${issuerUrl}/assets/logo.png`, // TODO this is super temporary and ugly, but the app crashes if it's not there
-              url: `${issuerUrl}/assets/logo.png`, // TODO this is super temporary and ugly, but the app crashes if it's not there
-              alt_text: 'the square decide logo',
-            },
-            description:
-              'A credential that holds the groups you have access to in Decide',
-            background_color: '#12107c',
-            text_color: '#FFFFFF',
-          },
-        ],
-        claims: {
-          // repeated for older specs
-          decideGroups: {
-            en: {
-              name: 'Decide Groups',
-              locale: 'en-US',
-            },
-          },
-          otherProjectGroups: {
-            en: {
-              name: 'Other Project Groups',
-              locale: 'en-US',
-            },
-          },
-          id: {
-            en: {
-              name: 'id',
-              locale: 'en-US',
-            },
-          },
-        },
-
-        vct: `${process.env.ISSUER_URL}`,
-        credential_metadata: {
-          display: [
-            {
-              name: 'Decide Roles Credential',
-              locale: 'en-US',
-              logo: {
-                uri: `${issuerUrl}/assets/logo.png`, // TODO this is super temporary and ugly, but the app crashes if it's not there
-                url: `${issuerUrl}/assets/logo.png`, // TODO this is super temporary and ugly, but the app crashes if it's not there
-                alt_text: 'the square decide logo',
-              },
-              description:
-                'A credential that holds the groups you have access to in Decide',
-              background_color: '#12107c',
-              text_color: '#FFFFFF',
-            },
-          ],
-          claims: [
-            {
-              path: ['decideGroups'],
-              display: [
-                {
-                  name: 'Decide Groups',
-                  locale: 'en-US',
-                },
-              ],
-            },
-            {
-              path: ['otherProjectGroups'],
-              display: [
-                {
-                  name: 'Other Project Groups',
-                  locale: 'en-US',
-                },
-              ],
-            },
-            {
-              path: ['id'],
-              display: [
-                {
-                  name: 'ID',
-                  locale: 'en-US',
-                },
-              ],
-            },
-          ],
-        },
-      },
-    },
-  });
-});
-
-router.get('/authorization_metadata', async function (req, res) {
-  const issuerUrl = process.env.ISSUER_URL as string;
-  res.send({
-    issuer: issuerUrl,
-    scopes_supported: ['JWT_VC_DECIDE_ROLES'],
-    authorization_endpoint: `${issuerUrl}/authorize`, // we don't have this yet, we don't have grant types that require it
-    token_endpoint: `${issuerUrl}/vc-issuer/token`,
-    response_types_supported: ['code'],
-    grant_types_supported: [
-      'urn:ietf:params:oauth:grant-type:pre-authorized_code',
-    ],
-  });
-});
-
-router.get('/vct', function (req, res) {
-  res.send({
-    vct: `${process.env.ISSUER_URL}`,
-    name: 'Decide Data Space Roles Credential',
-    claims: [
-      {
-        path: 'decideGroups',
-        display: { name: 'Groups', locale: 'en-US' },
-        sd: 'allowed',
-      },
-      {
-        path: 'otherProjectGroups',
-        display: { name: 'Other Project Groups', locale: 'en-US' },
-        sd: 'allowed',
-      },
-      {
-        path: 'id',
-        display: { name: 'ID', locale: 'en-US' },
-        sd: 'allowed',
-      },
-    ],
-    schema: {
-      $schema: 'https://json-schema.org/draft/2020-12/schema',
-      type: 'object',
-      properties: {
-        decideGroups: {
-          type: 'string',
-        },
-        otherProjectGroups: {
-          type: 'string',
-        },
-        id: {
-          type: 'string',
-        },
-      },
-      required: ['id'],
-    },
-  });
-});
-
-router.post('/token', async function (req, res) {
-  let preAuthorizedCode = req.query['pre-authorized_code'] as string;
-  if (req.body['pre-authorized_code']) {
-    preAuthorizedCode = req.body['pre-authorized_code'] as string;
-  }
-  // const transactionCode = req.query.tx_code as string | undefined;
-
-  const sessionUri = await issuer.getSessionForAuthCode(
-    preAuthorizedCode,
-    // transactionCode,
-  );
-  if (!sessionUri) {
-    res.status(403).send({ error: 'invalid_grant' });
-    return;
-  }
-
-  // generate proper token here
-  const token = await issuer.generateCredentialOfferToken(sessionUri);
-  res.send({
-    access_token: token,
-    token_type: 'Bearer',
-    expires_in: issuer.tokenTTL,
-  });
-
-  // TODO we may want to offer a nonce endpoint
-});
-
-router.post('/nonce', async function (req, res) {
-  const nonce = await issuer.generateNonce();
-  res.set('Cache-Control', 'no-store');
-  res.send({
-    c_nonce: nonce,
-  });
-});
-
-router.post('/credential', async function (req, res) {
-  console.log('body', req.body);
-  const { credential_configuration_id, proofs, proof } = req.body;
-
-  // 'proof' is because our wallet follows an old version of the spec
-  const jwt = proofs?.jwt ? proofs.jwt[0] : proof?.jwt;
-  // TODO logging everything for now to see how far we get with our wallets
-  console.log('Credential config id\n', credential_configuration_id);
-  console.log('Proofs:\n', proofs);
-  const auth = req.get('authorization') as string;
-  console.log('Authorization:\n', auth);
-  if (!auth || !auth.startsWith('Bearer ')) {
-    res.status(401).send({ error: 'invalid_token' });
-    return;
-  }
-  const token = auth.split(' ')[1];
-  const sessionInfo = await issuer.validateAuthToken(token);
-  if (!sessionInfo) {
-    // TODO we don't have actual session info yet, ignore this for now
-    // res.status(401).send({ error: 'invalid_token' });
-    // return;
-  }
-  // we don't actually have multiple credential types yet, so the wallet won't send this property
-  // if (credential_configuration_id !== process.env.CREDENTIAL_TYPE) {
-  //   res.status(400).send({ error: 'invalid_credential_configuration_id' });
-  //   return;
-  // }
-  // we don't require a proof for now, the wallet sends one anyway, it helps us figure out the did though
-  if (!jwt) {
-    res.status(400).send({ error: 'missing_proof' });
-    return;
-  }
-  const { did, jwk } = await issuer.validateProofAndGetHolderDid(jwt);
-
-  const signedVC = await issuer.issueCredential(did, jwk);
-  // credential because our wallet follows an old version of the spec
-  res.send({
-    //credentials: [{ credential: signedVC }], // commented as paradym fails with this property present T_T, it is correct according to the spec though
-    credential: signedVC, // for old specs
-    c_nonce: await issuer.generateNonce(), // for old specs
-    c_nonce_expires_in: 300, // yeah... it really doesn't, for old specs
-    format: 'vc+sd-jwt', // for old specs
-  });
-});
-
-router.get('/build-authorization-request-uri', async function (req, res) {
-  const session = req.get('mu-session-id') as string;
-  const { authorizationRequestUri } =
-    await verifier.buildAuthorizationRequestUri(session);
-  res.send({
-    authorizationRequestUri,
-  });
-});
-
-const handleAuthorizationRequest = async function (req, res) {
-  console.log('session:', req.get('mu-session-id'));
-  console.log('body', req.body);
-  console.log('query params', req.query);
-  const originalSession = req.query['original-session'] as string | undefined;
-  if (!originalSession) {
-    res.status(400).send({ error: 'missing original-session query parameter' });
-    return;
-  }
-  const { wallet_metadata, wallet_nonce } = req.body;
-  const session = req.get('mu-session-id') as string;
-  const authorizationRequestData = await verifier.buildAuthorizationRequestData(
-    session,
-    originalSession,
-    wallet_metadata,
-    wallet_nonce,
-  );
-  console.log(JSON.stringify(authorizationRequestData, null, 2));
-  res.type('application/oauth-authz-req+jwt');
-  res.send(authorizationRequestData);
-};
-
-router.post('/authorization-request', handleAuthorizationRequest);
-router.get('/authorization-request', handleAuthorizationRequest); // older specs use GET
-
-router.post('/presentation-response', async function (req, res) {
-  const currentSession = req.get('mu-session-id') as string;
-  const originalSession = req.query['original-session'] as string | undefined;
-  console.log('session:', req.get('mu-session-id'));
-  console.log('body', req.body);
-
-  if (!originalSession) {
-    res.status(400).send({ error: 'missing original-session query parameter' });
-    return;
-  }
-
-  await verifier.handlePresentationResponse(
-    currentSession,
-    originalSession,
-    req.body,
-  );
-
-  res.send({ status: 'ok' });
-});
-
-router.get('/authorization-request-status', async function (req, res) {
-  const session = req.get('mu-session-id') as string;
-  const status = await verifier.getAuthorizationRequestStatus(session);
-  res.send({ status });
-});

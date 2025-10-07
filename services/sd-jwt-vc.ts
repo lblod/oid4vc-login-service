@@ -7,7 +7,10 @@ import type {
   Verifier,
 } from '@sd-jwt/types';
 import * as Crypto from 'node:crypto';
-import { getPrivateKeyAsCryptoKey, getPublicKeyAsCryptoKey } from './crypto';
+import {
+  getPrivateKeyAsCryptoKey,
+  getPublicKeyAsCryptoKey,
+} from '../utils/crypto';
 
 const createSignerVerifier = () => {
   const privateKey = getPrivateKeyAsCryptoKey();

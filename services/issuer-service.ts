@@ -20,7 +20,7 @@ import {
   uuid,
 } from 'mu';
 import { SDJwtVCService } from './sd-jwt-vc';
-import { resolveDid } from './crypto';
+import { resolveDid } from '../utils/crypto';
 
 export class VCIssuer {
   ready = false;
