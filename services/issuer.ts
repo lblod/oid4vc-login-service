@@ -167,6 +167,9 @@ export class VCIssuer {
 
   async removeOldCredentialAuthCodes() {
     await updateSudo(`
+      PREFIX ext: <http://mu.semte.ch/vocabularies/ext/>
+      PREFIX dct: <http://purl.org/dc/terms/>
+
       DELETE {
         GRAPH ?g {
           ?token ?p ?o.
