@@ -8,6 +8,7 @@ import { VCVerifier } from './services/verifier';
 import { getIssuerRouter } from './routers/issuer';
 import { getVerifierRouter } from './routers/verifier';
 import { startCleanupCron } from './utils/cleanup-cron';
+import env from './utils/environment';
 
 app.use(
   bodyParser.json({
@@ -39,10 +40,10 @@ async function setup() {
   await sdJwtService.setup();
   await issuer.setup({
     sdJwtService: sdJwtService,
-    issuerDid: process.env.ISSUER_DID as string,
-    issuerKeyId: process.env.ISSUER_KEY_ID as string,
-    publicKey: process.env.ISSUER_PUBLIC_KEY as string,
-    privateKey: process.env.ISSUER_PRIVATE_KEY as string,
+    issuerDid: env.ISSUER_DID as string,
+    issuerKeyId: env.ISSUER_KEY_ID as string,
+    publicKey: env.ISSUER_PUBLIC_KEY as string,
+    privateKey: env.ISSUER_PRIVATE_KEY as string,
   });
   await verifier.setup({
     sdJwtService: sdJwtService,

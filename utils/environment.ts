@@ -18,6 +18,8 @@ const environment = {
     process.env.CREDENTIAL_URI_BASE || `${ISSUER_URL}/credentials/`,
   ISSUER_DID: process.env.ISSUER_DID,
   ISSUER_KEY_ID: process.env.ISSUER_KEY_ID,
+  ISSUER_PUBLIC_KEY: process.env.ISSUER_PUBLIC_KEY,
+  ISSUER_PRIVATE_KEY: process.env.ISSUER_PRIVATE_KEY,
   ISSUER_NAME: process.env.ISSUER_NAME || `${PROJECT_NAME} OID4VC Issuer`,
   ISSUER_SERVICE_PATH: process.env.ISSUER_SERVICE_PATH || 'vc-issuer',
   ISSUER_URL,
@@ -36,6 +38,8 @@ console.log('Environment:', JSON.stringify(environment, null, 2));
 const requiredVars = [
   'ISSUER_DID',
   'ISSUER_KEY_ID',
+  'ISSUER_PUBLIC_KEY',
+  'ISSUER_PRIVATE_KEY',
   'VERIFIER_DID',
   'VERIFIER_KEY_ID',
 ];

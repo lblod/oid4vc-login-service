@@ -77,7 +77,7 @@ export async function getIssuerRouter(issuer) {
             },
           },
 
-          vct: `${process.env.ISSUER_URL}`,
+          vct: `${env.ISSUER_URL}`,
           credential_metadata: {
             display: [
               {
@@ -219,7 +219,7 @@ export async function getIssuerRouter(issuer) {
       // return;
     }
     // we don't actually have multiple credential types yet, so the wallet won't send this property
-    // if (credential_configuration_id !== process.env.CREDENTIAL_TYPE) {
+    // if (credential_configuration_id !== env.CREDENTIAL_TYPE) {
     //   res.status(400).send({ error: 'invalid_credential_configuration_id' });
     //   return;
     // }

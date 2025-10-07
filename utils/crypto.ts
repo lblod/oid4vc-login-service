@@ -4,6 +4,7 @@ import { Resolver } from 'did-resolver';
 import { getResolver as getWebResolver } from 'web-did-resolver';
 import { getResolver as getKeyResolver } from '@sphereon/did-resolver-key';
 import * as jose from 'jose';
+import env from './environment';
 
 const MULTICODEC_ED25519_PUB_HEADER = new Uint8Array([0xed, 0x01]);
 const MULTICODEC_ED25519_PRIV_HEADER = new Uint8Array([0x80, 0x26]);
@@ -100,7 +101,7 @@ export function getPrivateKeyAsCryptoKey() {
   }
   privateKeyAsCryptoKey = Crypto.createPrivateKey({
     key: privateKeyDerEncode({
-      privateKeyBytes: getPrivateKeyBuffer(process.env.ISSUER_PRIVATE_KEY),
+      privateKeyBytes: getPrivateKeyBuffer(env.ISSUER_PRIVATE_KEY),
     }),
     format: 'der',
     type: 'pkcs8',
@@ -116,7 +117,7 @@ export function getPublicKeyAsCryptoKey() {
   }
   publicKeyAsCryptoKey = Crypto.createPublicKey({
     key: publicKeyDerEncode({
-      publicKeyBytes: getPublicKeyBuffer(process.env.ISSUER_PUBLIC_KEY),
+      publicKeyBytes: getPublicKeyBuffer(env.ISSUER_PUBLIC_KEY),
     }),
     format: 'der',
     type: 'spki',
@@ -130,7 +131,7 @@ export function getPublicKeyAsJwk() {
   if (publicKeyAsJwk) {
     return publicKeyAsJwk;
   }
-  const publicKeyBytes = getPublicKeyBuffer(process.env.ISSUER_PUBLIC_KEY);
+  const publicKeyBytes = getPublicKeyBuffer(env.ISSUER_PUBLIC_KEY);
   publicKeyAsJwk = {
     kty: 'OKP',
     crv: 'Ed25519',
