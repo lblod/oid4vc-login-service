@@ -222,21 +222,21 @@ export class VCIssuer {
       PREFIX dct: <http://purl.org/dc/terms/>
       DELETE {
         GRAPH <http://mu.semte.ch/graphs/verifiable-credential-tokens> {
-          ${sparqlEscapeUri(session)} ext:nonce ?oldNonce .
+          ${sparqlEscapeUri(session)} ext:nonce ?oldNonce ;
+            ext:nonceCreated ?created .
         }
       } WHERE {
         GRAPH <http://mu.semte.ch/graphs/verifiable-credential-tokens> {
           ${sparqlEscapeUri(session)} ext:nonce ?oldNonce ;
-            dct:created ?created .
+            ext:nonceCreated ?created .
         }
       }`);
     await updateSudo(`
       PREFIX ext: <http://mu.semte.ch/vocabularies/ext/>
-      PREFIX dct: <http://purl.org/dc/terms/>
       INSERT DATA {
         GRAPH <http://mu.semte.ch/graphs/verifiable-credential-tokens> {
           ${sparqlEscapeUri(session)} ext:nonce ${sparqlEscapeString(nonce)} ;
-            dct:created ${sparqlEscapeDateTime(new Date())} .
+            ext:nonceCreated ${sparqlEscapeDateTime(new Date())} .
         }
       }`);
     return nonce;
@@ -245,12 +245,11 @@ export class VCIssuer {
   async getExpectedNonceForSession(session: string) {
     const result = await querySudo(`
       PREFIX ext: <http://mu.semte.ch/vocabularies/ext/>
-      PREFIX dct: <http://purl.org/dc/terms/>
 
       SELECT ?nonce WHERE {
         GRAPH <http://mu.semte.ch/graphs/verifiable-credential-tokens> {
           ${sparqlEscapeUri(session)} ext:nonce ?nonce ;
-            dct:created ?created .
+            ext:nonceCreated ?created .
           FILTER(?created > ${sparqlEscapeDateTime(new Date(Date.now() - env.NONCE_TTL))})
         }
       } LIMIT 1`);
@@ -260,16 +259,16 @@ export class VCIssuer {
   async removeOldNonces() {
     await updateSudo(`
       PREFIX ext: <http://mu.semte.ch/vocabularies/ext/>
-      PREFIX dct: <http://purl.org/dc/terms/>
 
       DELETE {
         GRAPH <http://mu.semte.ch/graphs/verifiable-credential-tokens> {
-          ?session ext:nonce ?nonce .
+          ?session ext:nonce ?nonce ;
+            ext:nonceCreated ?created .
         }
       } WHERE {
         GRAPH <http://mu.semte.ch/graphs/verifiable-credential-tokens> {
           ?session ext:nonce ?nonce ;
-            dct:created ?created .
+            ext:nonceCreated ?created .
           FILTER(?created < ${sparqlEscapeDateTime(new Date(Date.now() - env.NONCE_TTL))})
         }
       }`);
@@ -279,7 +278,7 @@ export class VCIssuer {
     const [jwtHeader, jwtPayload] = jwt.split('.');
     const decodedJwtHeader = JSON.parse(atob(jwtHeader));
     const decodedJwtPayload = JSON.parse(atob(jwtPayload));
-    if (expectedNonce && decodedJwtPayload.nonce !== expectedNonce) {
+    if (decodedJwtPayload.nonce !== expectedNonce) {
       throw new Error('invalid_nonce');
     }
     const did = decodedJwtHeader.kid;

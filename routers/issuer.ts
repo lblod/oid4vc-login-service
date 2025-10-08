@@ -167,14 +167,7 @@ export async function getIssuerRouter(issuer: VCIssuer) {
       res.status(400).send({ error: 'invalid_proof' });
       return;
     }
-    const decodedPayload = JSON.parse(
-      Buffer.from(payload, 'base64').toString(),
-    );
-    const nonce = decodedPayload.c_nonce;
-    if (!nonce || nonce !== expectedNonce) {
-      res.status(400).send({ error: 'invalid_nonce' });
-      return;
-    }
+
     const { did, jwk } = await issuer
       .validateProofAndGetHolderDid(jwt, expectedNonce)
       .catch((e) => {
