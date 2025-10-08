@@ -1,8 +1,6 @@
-import env from './environment';
-
 import winston from 'winston';
 
 export const logger = winston.createLogger({
-  level: env.LOG_LEVEL,
+  level: process.env.LOG_LEVEL || 'info', // can't import env because we're using logger there
   transports: [new winston.transports.Console()],
 });
