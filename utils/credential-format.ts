@@ -201,7 +201,7 @@ export const getSessionInfoForCredentialOfferToken = async (token: string) => {
     groups.add(binding.group.value);
     roles.add(binding.role.value);
   });
-  if (groups.size > 0) {
+  if (groups.size != 1) {
     throw new Error('Multiple groups not supported');
   }
   certificateInfo['group'] = Array.from(groups).join(',');
