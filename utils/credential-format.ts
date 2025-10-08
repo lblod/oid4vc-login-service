@@ -303,8 +303,8 @@ export const updateSessionWithCredentialInfo = async (
       WHERE {
         GRAPH ?g {
           ?session ext:sessionGroup ?group .
-          VALUES ?session ?account ?accountId ?user ?userId ?firstName ?lastName {
-            ${sparqlEscapeUri(session)} ${sparqlEscapeUri(accountUri)} ${sparqlEscapeString(accountId)} ${sparqlEscapeUri(userUri)} ${sparqlEscapeString(userId)} ${sparqlEscapeString(firstName)} ${sparqlEscapeString(lastName)}
+          VALUES ( ?session ?account ?accountId ?user ?userId ?firstName ?lastName ) {
+            ( ${sparqlEscapeUri(session)} ${sparqlEscapeUri(accountUri)} ${sparqlEscapeString(accountId)} ${sparqlEscapeUri(userUri)} ${sparqlEscapeString(userId)} ${sparqlEscapeString(firstName)} ${sparqlEscapeString(lastName)} )
           }
         }
       }`);
