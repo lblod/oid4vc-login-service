@@ -8,7 +8,7 @@ import * as didWeb from '@digitalbazaar/did-method-web';
 import { Ed25519Signature2020 } from '@digitalbazaar/ed25519-signature-2020';
 import { Ed25519VerificationKey2020 } from '@digitalbazaar/ed25519-verification-key-2020';
 import { securityLoader } from '@digitalbazaar/security-document-loader';
-import { updateSudo } from '@lblod/mu-auth-sudo';
+import { updateSudo, querySudo } from '@lblod/mu-auth-sudo';
 import * as crypto from 'crypto';
 import { randomBytes } from 'crypto';
 import {
@@ -20,6 +20,7 @@ import {
 import { resolveDid } from '../utils/crypto';
 import env from '../utils/environment';
 import { SDJwtVCService } from './sd-jwt-vc';
+import { SessionInfo } from '../utils/credential-format';
 
 export class VCIssuer {
   ready = false;
@@ -83,11 +84,7 @@ export class VCIssuer {
   }
 
   // jwk is the public key that corresponds to the did (we already resolved it during verification, so let's not do so again)
-  async issueCredential(
-    holderDid: string,
-    jwk,
-    sessionInfo: { [group: string]: string[] },
-  ) {
+  async issueCredential(holderDid: string, jwk, sessionInfo: SessionInfo) {
     return this.sdJwtService.buildCredential(holderDid, jwk, sessionInfo);
   }
 
@@ -107,25 +104,6 @@ export class VCIssuer {
     return {
       credentialOfferUri,
     };
-  }
-
-  async validateAuthToken(token: string) {
-    const result = await this.getSessionInfoForCredentialOfferToken(token);
-
-    if (result.results.bindings.length === 0) {
-      return null;
-    }
-    const groups = {};
-    result.results.bindings.forEach(async (binding) => {
-      // currently every session can only be part of one group, but this structure allows for multiple groups if that ever changes
-      const group = binding.group.value;
-      const role = binding.role.value;
-      if (!groups[group]) {
-        groups[group] = [];
-      }
-      groups[group].push(role);
-    });
-    return groups;
   }
 
   credentialTokenUriPrefix = 'http://data.lblod.info/credential-offer-token/';
@@ -152,7 +130,7 @@ export class VCIssuer {
   }
 
   async getSessionForAuthCode(token) {
-    const result = await updateSudo(`
+    const result = await querySudo(`
       PREFIX ext: <http://mu.semte.ch/vocabularies/ext/>
       PREFIX mu: <http://mu.semte.ch/vocabularies/core/>
       PREFIX dct: <http://purl.org/dc/terms/>
@@ -215,28 +193,6 @@ export class VCIssuer {
             dct:created ${sparqlEscapeDateTime(new Date())} .
         }
       }`);
-  }
-
-  async getSessionInfoForCredentialOfferToken(token) {
-    const result = await updateSudo(`
-      PREFIX ext: <http://mu.semte.ch/vocabularies/ext/>
-      PREFIX mu: <http://mu.semte.ch/vocabularies/core/>
-      PREFIX dct: <http://purl.org/dc/terms/>
-
-      SELECT ?session ?group ?role {
-        GRAPH <http://mu.semte.ch/graphs/verifiable-credential-tokens> {
-          ?token a ext:CredentialOfferToken .
-          ?token ext:issuerUrl ${sparqlEscapeString(env.ISSUER_URL)} .
-          ?token ext:authToken ${sparqlEscapeString(token)} .
-          ?token ext:session ?session .
-          ?token dct:created ?created .
-          ?session ext:sessionGroup ?group .
-          ?session ext:sessionRole ?role .
-
-          FILTER(?created > ${sparqlEscapeDateTime(new Date(Date.now() - this.tokenTTL))})
-        }
-      }`);
-    return result;
   }
 
   async removeOldCredentialOfferTokens() {

@@ -12,6 +12,11 @@ import {
   getPublicKeyAsCryptoKey,
 } from '../utils/crypto';
 import env from '../utils/environment';
+import {
+  getDisclosureFrame,
+  getRequiredClaimsForValidation,
+  SessionInfo,
+} from '../utils/credential-format';
 
 const createSignerVerifier = () => {
   const privateKey = getPrivateKeyAsCryptoKey();
@@ -80,25 +85,16 @@ export class SDJwtVCService {
     this.ready = true;
   }
 
-  async buildCredential(
-    ownerDid: string,
-    jwk,
-    sessionInfo: { [group: string]: string[] },
-  ) {
-    // currently only allowing for one group per session
-    const firstGroup = Object.keys(sessionInfo)[0];
-    const roles = sessionInfo[firstGroup].join(',');
-
+  async buildCredential(ownerDid: string, jwk, sessionInfo: SessionInfo) {
     // Issuer Define the claims object with the user's information
     const claims = {
-      group: firstGroup,
-      roles: roles,
-      id: ownerDid,
+      did: ownerDid,
+      ...sessionInfo,
     };
 
     // Issuer Define the disclosure frame to specify which claims can be disclosed
     const disclosureFrame: DisclosureFrame<typeof claims> = {
-      _sd: ['group', 'roles', 'id'],
+      _sd: getDisclosureFrame(),
     };
 
     // Issue a signed JWT credential with the specified claims and disclosures
@@ -157,7 +153,7 @@ export class SDJwtVCService {
 
   async validateAndDecodeCredential(credential: string, nonce: string) {
     const verified = await this.sdjwt.verify(credential, {
-      requiredClaimKeys: ['group', 'roles', 'id'],
+      requiredClaimKeys: getRequiredClaimsForValidation(),
       keyBindingNonce: nonce,
     });
     console.log('verified:', verified);

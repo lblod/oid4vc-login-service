@@ -1,7 +1,17 @@
 import Router from 'express-promise-router';
 import env from '../utils/environment';
+import {
+  getCredentialDisplay,
+  getCredentialMetadataClaims,
+  getOldCredentialClaims,
+  getSessionInfoForCredentialOfferToken,
+  getVctClaims,
+  getVctDisplay,
+  getVctSchema,
+} from '../utils/credential-format';
+import { VCIssuer } from '../services/issuer';
 
-export async function getIssuerRouter(issuer) {
+export async function getIssuerRouter(issuer: VCIssuer) {
   const router = Router();
 
   router.get('/build-credential-offer-uri', async function (req, res) {
@@ -46,88 +56,15 @@ export async function getIssuerRouter(issuer) {
               proof_signing_alg_values_supported: ['ES256'],
             },
           },
-          display: [
-            // repeated for older specs
-            {
-              name: env.CREDENTIAL_NAME,
-              locale: 'en-US',
-              logo: {
-                uri: env.LOGO_URL,
-                url: env.LOGO_URL,
-                alt_text: `${env.ISSUER_NAME} Logo`,
-              },
-              description: `A credential that holds your access rights in ${env.PROJECT_NAME}`,
-              background_color: env.CARD_BACKGROUND_COLOR,
-              text_color: env.CARD_TEXT_COLOR,
-            },
-          ],
-          claims: {
-            // repeated for older specs
-            group: {
-              en: {
-                name: 'Group',
-                locale: 'en-US',
-              },
-            },
-            roles: {
-              en: {
-                name: 'Roles',
-                locale: 'en-US',
-              },
-            },
-            id: {
-              en: {
-                name: 'id',
-                locale: 'en-US',
-              },
-            },
-          },
+          // repeated for older specs
+          display: getCredentialDisplay(),
+          // repeated for older specs
+          claims: getOldCredentialClaims(),
 
           vct: `${env.ISSUER_URL}`,
           credential_metadata: {
-            display: [
-              {
-                name: env.CREDENTIAL_NAME,
-                locale: 'en-US',
-                logo: {
-                  uri: env.LOGO_URL,
-                  url: env.LOGO_URL,
-                  alt_text: `${env.ISSUER_NAME} Logo`,
-                },
-                description: `A credential that holds your access rights in ${env.PROJECT_NAME}`,
-                background_color: env.CARD_BACKGROUND_COLOR,
-                text_color: env.CARD_TEXT_COLOR,
-              },
-            ],
-            claims: [
-              {
-                path: ['group'],
-                display: [
-                  {
-                    name: 'Group',
-                    locale: 'en-US',
-                  },
-                ],
-              },
-              {
-                path: ['roles'],
-                display: [
-                  {
-                    name: 'Roles',
-                    locale: 'en-US',
-                  },
-                ],
-              },
-              {
-                path: ['id'],
-                display: [
-                  {
-                    name: 'ID',
-                    locale: 'en-US',
-                  },
-                ],
-              },
-            ],
+            display: getCredentialDisplay(),
+            claims: getCredentialMetadataClaims(),
           },
         },
       },
@@ -155,57 +92,9 @@ export async function getIssuerRouter(issuer) {
     res.send({
       vct: `${env.ISSUER_URL}`,
       name: env.CREDENTIAL_NAME,
-      claims: [
-        {
-          path: 'group',
-          display: { name: 'Group', locale: 'en-US' },
-          sd: 'allowed',
-        },
-        {
-          path: 'roles',
-          display: { name: 'Roles', locale: 'en-US' },
-          sd: 'allowed',
-        },
-        {
-          path: 'id',
-          display: { name: 'ID', locale: 'en-US' },
-          sd: 'allowed',
-        },
-      ],
-      display: [
-        {
-          lang: 'en',
-          name: env.CREDENTIAL_NAME,
-          description: `A credential that holds your access rights in ${env.PROJECT_NAME}`,
-          rendering: {
-            simple: {
-              background_color: env.CARD_BACKGROUND_COLOR,
-              text_color: env.CARD_TEXT_COLOR,
-              logo: {
-                url: env.LOGO_URL,
-                uri: env.LOGO_URL,
-                alt_text: `${env.PROJECT_NAME} Logo`,
-              },
-            },
-          },
-        },
-      ],
-      schema: {
-        $schema: 'https://json-schema.org/draft/2020-12/schema',
-        type: 'object',
-        properties: {
-          group: {
-            type: 'string',
-          },
-          roles: {
-            type: 'string',
-          },
-          id: {
-            type: 'string',
-          },
-        },
-        required: ['id'],
-      },
+      claims: getVctClaims(),
+      display: getVctDisplay(),
+      schema: getVctSchema(),
     });
   });
 
@@ -254,7 +143,7 @@ export async function getIssuerRouter(issuer) {
       return;
     }
     const token = auth.split(' ')[1];
-    const sessionInfo = await issuer.validateAuthToken(token);
+    const sessionInfo = await getSessionInfoForCredentialOfferToken(token);
     if (!sessionInfo) {
       res.status(401).send({ error: 'invalid_token' });
       return;

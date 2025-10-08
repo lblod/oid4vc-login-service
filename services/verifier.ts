@@ -8,6 +8,11 @@ import {
 } from '../utils/crypto';
 import { SDJwtVCService } from './sd-jwt-vc';
 import env from '../utils/environment';
+import {
+  getDcqlClaims,
+  SessionInfo,
+  updateSessionWithCredentialInfo,
+} from '../utils/credential-format';
 
 export class VCVerifier {
   ready = false;
@@ -159,7 +164,7 @@ export class VCVerifier {
           meta: {
             vct_values: [env.ISSUER_URL],
           },
-          claims: [{ path: ['group'] }, { path: ['roles'] }, { path: ['id'] }],
+          claims: getDcqlClaims(),
         },
       ],
       credential_sets: [
@@ -251,9 +256,9 @@ export class VCVerifier {
       .validateAndDecodeCredential(credential, nonce)
       .then(async (res) => {
         const payload = res.payload;
-        await this.updateSessionWithCredentialGroupsAndRoles(
+        await updateSessionWithCredentialInfo(
           originalSession,
-          payload,
+          payload as SessionInfo,
         );
         console.log('Credential verified successfully', res);
         await this.updateAuthorizationRequestStatus(
@@ -365,55 +370,6 @@ export class VCVerifier {
             dct:created ?created ;
             ext:ephemeralPrivateKey ?privateKey .
             FILTER(?created < ${sparqlEscapeDateTime(new Date(Date.now() - env.AUTHORIZATION_REQUEST_TTL))})
-        }
-      }
-    `);
-  }
-
-  async updateSessionWithCredentialGroupsAndRoles(
-    session: string,
-    { group, roles }: { group: string; roles: string },
-  ) {
-    const safeRolesString = roles
-      .split(',')
-      .map((role) => sparqlEscapeString(role))
-      .join('\n');
-
-    await updateSudo(`
-      PREFIX ext: <http://mu.semte.ch/vocabularies/ext/>
-      PREFIX dct: <http://purl.org/dc/terms/>
-      DELETE {
-        GRAPH ?g {
-          ?session ext:sessionGroup ?oldGroup ;
-            ext:sessionRole ?oldRoles ;
-            dct:modified ?oldMod .
-        }
-      } INSERT {
-        GRAPH ?g {
-          ?session ext:sessionGroup ?newGroup ;
-            ext:sessionRole ?newRoles ;
-            dct:modified ?newMod .
-        }
-    }  WHERE {
-        GRAPH ?g {
-          VALUES ?session {
-            ${sparqlEscapeUri(session)}
-          }
-          ?session a ext:Session .
-          OPTIONAL {
-            ?session ext:sessionGroup ?oldGroup .
-          }
-          OPTIONAL {
-            ?session ext:sessionRole ?oldRoles .
-          }
-          OPTIONAL {
-            ?session dct:modified ?oldMod .
-          }
-          VALUES ?newGroup { ${sparqlEscapeUri(group)} }
-          VALUES ?newRoles {
-            ${safeRolesString}
-          }
-          BIND(NOW() AS ?newMod)
         }
       }
     `);
