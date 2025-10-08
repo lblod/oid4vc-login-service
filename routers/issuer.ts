@@ -130,7 +130,8 @@ export async function getIssuerRouter(issuer: VCIssuer) {
 
   router.post('/credential', async function (req, res) {
     const walletSession = req.get('mu-session-id') as string;
-    const expectedNonce = issuer.getExpectedNonceForSession(walletSession);
+    const expectedNonce =
+      await issuer.getExpectedNonceForSession(walletSession);
 
     console.log('body', req.body);
     const { credential_configuration_id, proofs, proof } = req.body;
@@ -174,7 +175,17 @@ export async function getIssuerRouter(issuer: VCIssuer) {
       res.status(400).send({ error: 'invalid_nonce' });
       return;
     }
-    const { did, jwk } = await issuer.validateProofAndGetHolderDid(jwt);
+    const { did, jwk } = await issuer
+      .validateProofAndGetHolderDid(jwt, expectedNonce)
+      .catch((e) => {
+        console.error('Error validating proof', e);
+        res.status(400).send({ error: e.message });
+        return { did: null, jwk: null };
+      });
+    if (!did) {
+      return; // we already sent a response in the catch block
+    }
+
     console.log('holder did:', did);
     console.log('holder jwk:', jwk);
 

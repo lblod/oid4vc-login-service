@@ -244,9 +244,13 @@ export class VCIssuer {
     return result.results.bindings[0]?.nonce.value;
   }
 
-  async validateProofAndGetHolderDid(jwt: string) {
-    const [jwtHeader] = jwt.split('.');
+  async validateProofAndGetHolderDid(jwt: string, expectedNonce: string) {
+    const [jwtHeader, jwtPayload] = jwt.split('.');
     const decodedJwtHeader = JSON.parse(atob(jwtHeader));
+    const decodedJwtPayload = JSON.parse(atob(jwtPayload));
+    if (expectedNonce && decodedJwtPayload.nonce !== expectedNonce) {
+      throw new Error('invalid_nonce');
+    }
     const did = decodedJwtHeader.kid;
     if (!did || !did.startsWith('did:')) {
       throw new Error('invalid_proof');
