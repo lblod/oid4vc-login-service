@@ -30,6 +30,17 @@ const environment = {
   VERIFIER_DID: process.env.VERIFIER_DID,
   VERIFIER_KEY_ID: process.env.VERIFIER_KEY_ID,
   VERIFIER_URL,
+  USER_GRAPH_TEMPLATE:
+    process.env.USER_GRAPH_TEMPLATE ||
+    'http://mu.semte.ch/graphs/organizations/{{groupId}}',
+  ACCOUNT_GRAPH_TEMPLATE:
+    process.env.ACCOUNT_GRAPH_TEMPLATE ||
+    'http://mu.semte.ch/graphs/organizations/{{groupId}}',
+  SESSION_GRAPH:
+    process.env.SESSION_GRAPH || 'http://mu.semte.ch/graphs/sessions',
+  SERVICE_HOMEPAGE:
+    process.env.SERVICE_HOMEPAGE ||
+    'https://github.com/lblod/oid4vc-login-service',
 };
 
 console.log('Environment:', JSON.stringify(environment, null, 2));

@@ -1,5 +1,10 @@
 import env from './environment';
-import { sparqlEscapeDateTime, sparqlEscapeString, sparqlEscapeUri } from 'mu';
+import {
+  sparqlEscapeDateTime,
+  sparqlEscapeString,
+  sparqlEscapeUri,
+  uuid,
+} from 'mu';
 import { querySudo, updateSudo } from '@lblod/mu-auth-sudo';
 
 export const certificateProperties = [
@@ -224,88 +229,97 @@ export const updateSessionWithCredentialInfo = async (
     userId,
     userUri,
   } = sessionInfo;
+
+  const existingGroups = await querySudo(`
+      PREFIX ext: <http://mu.semte.ch/vocabularies/ext/>
+      PREFIX dct: <http://purl.org/dc/terms/>
+
+      SELECT ?group WHERE {
+        GRAPH ${sparqlEscapeUri(env.SESSION_GRAPH)} {
+          ${sparqlEscapeUri(session)} ext:sessionGroup ?group .
+        }
+      } LIMIT 1`);
+  if (existingGroups.results.bindings.length > 0) {
+    throw new Error(
+      'Session already has a group, must be logged in somewhere else. Refusing to override',
+    );
+  }
+
   const safeRolesString = roles
     .split(',')
     .map((role) => sparqlEscapeString(role))
-    .join('\n');
+    .join(', ');
 
   await updateSudo(`
       PREFIX ext: <http://mu.semte.ch/vocabularies/ext/>
       PREFIX dct: <http://purl.org/dc/terms/>
-      DELETE {
-        GRAPH ?g {
-          ?session ext:sessionGroup ?oldGroup ;
-            ext:sessionRole ?oldRoles ;
-            dct:modified ?oldMod .
+      PREFIX mu: <http://mu.semte.ch/vocabularies/core/>
+      PREFIX session: <http://mu.semte.ch/vocabularies/ext/session/>
+
+      INSERT DATA {
+        GRAPH ${sparqlEscapeUri(env.SESSION_GRAPH)} {
+          ${sparqlEscapeUri(session)} mu:uuid ${sparqlEscapeString(uuid())} ;
+            session:account ${sparqlEscapeUri(accountUri)} ;
+            ext:sessionGroup ${sparqlEscapeString(group)} ;
+            ext:sessionRole ${safeRolesString} ;
+            dct:modified ${sparqlEscapeDateTime(new Date())} .
         }
-      } INSERT {
-        GRAPH ?g {
-          ?session ext:sessionGroup ?newGroup ;
-            ext:sessionRole ?newRoles ;
-            dct:modified ?newMod .
-        }
-    }  WHERE {
-        GRAPH ?g {
-          VALUES ?session {
-            ${sparqlEscapeUri(session)}
-          }
-          ?session a ext:Session .
-          OPTIONAL {
-            ?session ext:sessionGroup ?oldGroup .
-          }
-          OPTIONAL {
-            ?session ext:sessionRole ?oldRoles .
-          }
-          OPTIONAL {
-            ?session dct:modified ?oldMod .
-          }
-          VALUES ?newGroup { ${sparqlEscapeUri(group)} }
-          VALUES ?newRoles {
-            ${safeRolesString}
-          }
-          BIND(NOW() AS ?newMod)
-        }
-      }
-    `);
+      }`);
 
   // we won't override the user info if it's already there, if it's not though, we add it
   const accountResult = await querySudo(`
       PREFIX foaf: <http://xmlns.com/foaf/0.1/>
-      PREFIX mu: <http://mu.semte.ch/vocabularies/core/>
-      PREFIX ext: <http://mu.semte.ch/vocabularies/ext/>
 
       SELECT ?account WHERE {
-        VALUES ?session { ${sparqlEscapeUri(session)} }
-        ?session <http://mu.semte.ch/vocabularies/session/account> ?account .
+        VALUES ?account { ${sparqlEscapeUri(accountUri)} }
+        ?account a foaf:OnlineAccount .
       } LIMIT 1`);
   if (accountResult.results.bindings.length > 0) {
     return;
   }
 
+  const groupId = await getGroupId(group);
+
+  const accountGraph = env.ACCOUNT_GRAPH_TEMPLATE.replace(
+    '{{groupId}}',
+    encodeURIComponent(groupId),
+  );
+  const userGraph = env.USER_GRAPH_TEMPLATE.replace(
+    '{{groupId}}',
+    encodeURIComponent(groupId),
+  );
+
   await updateSudo(`
       PREFIX foaf: <http://xmlns.com/foaf/0.1/>
+      PREFIX dct: <http://purl.org/dc/terms/>
       PREFIX mu: <http://mu.semte.ch/vocabularies/core/>
       PREFIX ext: <http://mu.semte.ch/vocabularies/ext/>
 
-      INSERT {
-        GRAPH ?g {
-
-          ?session <http://mu.semte.ch/vocabularies/session/account> ?account .
-          ?account a foaf:OnlineAccount ;
-            mu:uuid ?accountId .
-          ?user a foaf:Person ;
-            foaf:account ?account ;
-            mu:uuid ?userId ;
-            foaf:firstName ?firstName ;
-            foaf:familyName ?lastName .
-        }
-      }
-      WHERE {
-        GRAPH ?g {
-          ?session ext:sessionGroup ?group .
-          VALUES ( ?session ?account ?accountId ?user ?userId ?firstName ?lastName ) {
-            ( ${sparqlEscapeUri(session)} ${sparqlEscapeUri(accountUri)} ${sparqlEscapeString(accountId)} ${sparqlEscapeUri(userUri)} ${sparqlEscapeString(userId)} ${sparqlEscapeString(firstName)} ${sparqlEscapeString(lastName)} )
+      INSERT DATA {
+        GRAPH ${sparqlEscapeUri(accountGraph)} {
+          ${sparqlEscapeUri(accountUri)} a foaf:OnlineAccount ;
+            foaf:accountServiceHomepage ${sparqlEscapeUri(env.SERVICE_HOMEPAGE)} ;
+            dct:created ${sparqlEscapeDateTime(new Date())} ;
+            mu:uuid ${sparqlEscapeString(accountId)} .
           }
+        GRAPH ${sparqlEscapeUri(userGraph)} {
+          ${sparqlEscapeUri(userUri)} a foaf:Person ;
+            foaf:account ${sparqlEscapeUri(accountUri)} ;
+            mu:uuid ${sparqlEscapeString(userId)} ;
+            foaf:firstName ${sparqlEscapeString(firstName)} ;
+            foaf:familyName ${sparqlEscapeString(lastName)} .
         }
       }`);
 };
+
+async function getGroupId(groupUri: string) {
+  const result = await querySudo(`
+      PREFIX mu: <http://mu.semte.ch/vocabularies/core/>
+      SELECT ?groupId WHERE {
+        ${sparqlEscapeUri(groupUri)} mu:uuid ?groupId .
+      } LIMIT 1`);
+  if (result.results.bindings.length === 0) {
+    throw new Error(`No group found for uri ${groupUri}`);
+  }
+  return result.results.bindings[0].groupId.value;
+}
