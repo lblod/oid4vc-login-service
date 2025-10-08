@@ -197,6 +197,9 @@ export class VCIssuer {
 
   async removeOldCredentialOfferTokens() {
     await updateSudo(`
+      PREFIX ext: <http://mu.semte.ch/vocabularies/ext/>
+      PREFIX dct: <http://purl.org/dc/terms/>
+
       DELETE {
         GRAPH ?g {
           ?token ?p ?o.

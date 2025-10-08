@@ -165,10 +165,10 @@ export const getSessionInfoForCredentialOfferToken = async (token: string) => {
 
         OPTIONAL {
           ?accountUri mu:uuid ?accountId .
-          ?user foaf:account ?accountUri .
-          ?user mu:uuid ?userId .
-          ?user foaf:firstName ?firstName .
-          ?user foaf:familyName ?lastName .
+          ?userUri foaf:account ?accountUri .
+          ?userUri mu:uuid ?userId .
+          ?userUri foaf:firstName ?firstName .
+          ?userUri foaf:familyName ?lastName .
         }
       }`);
 
