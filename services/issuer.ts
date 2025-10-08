@@ -219,7 +219,7 @@ export class VCIssuer {
     const nonce = randomBytes(16).toString('hex');
     await updateSudo(`
       PREFIX ext: <http://mu.semte.ch/vocabularies/ext/>
-      PREFIX dct: <http://purl.org/dc/terms/>
+
       DELETE {
         GRAPH <http://mu.semte.ch/graphs/verifiable-credential-tokens> {
           ${sparqlEscapeUri(session)} ext:nonce ?oldNonce ;
@@ -279,6 +279,7 @@ export class VCIssuer {
     const decodedJwtHeader = JSON.parse(atob(jwtHeader));
     const decodedJwtPayload = JSON.parse(atob(jwtPayload));
     if (decodedJwtPayload.nonce !== expectedNonce) {
+      console.log('expected nonce:', expectedNonce);
       throw new Error('invalid_nonce');
     }
     const did = decodedJwtHeader.kid;
