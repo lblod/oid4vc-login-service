@@ -19,6 +19,7 @@ export function startCleanupCron({
       }
       await issuerService.removeOldCredentialAuthCodes();
       await issuerService.removeOldCredentialOfferTokens();
+      await issuerService.removeOldNonces();
       await verifierService.removeOldAuthorizationRequestKeys();
       await verifierService.removeOldAuthorizationRequests();
 
