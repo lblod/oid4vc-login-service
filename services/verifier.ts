@@ -13,6 +13,7 @@ import {
   SessionInfo,
   updateSessionWithCredentialInfo,
 } from '../utils/credential-format';
+import { logger } from '../utils/logger';
 
 export class VCVerifier {
   ready = false;
@@ -249,8 +250,8 @@ export class VCVerifier {
     }
     const credential = vp_token.roles_credential;
 
-    console.log('payload:', payload);
-    console.log('protectedHeader:', protectedHeader);
+    logger.debug('payload:', payload);
+    logger.debug('protectedHeader:', protectedHeader);
 
     const verified = await this.sdJwtService
       .validateAndDecodeCredential(credential, nonce)
@@ -260,7 +261,7 @@ export class VCVerifier {
           originalSession,
           payload as SessionInfo,
         );
-        console.log('Credential verified successfully', res);
+        logger.debug('Credential verified successfully', res);
         await this.updateAuthorizationRequestStatus(
           originalSession,
           'accepted',
@@ -269,7 +270,7 @@ export class VCVerifier {
         return res;
       })
       .catch(async (e) => {
-        console.log('Error verifying credential:', e);
+        logger.error('Error verifying credential:', e);
         await this.updateAuthorizationRequestStatus(
           originalSession,
           'rejected',

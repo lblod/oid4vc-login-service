@@ -1,3 +1,5 @@
+import { logger } from './logger';
+
 const ISSUER_URL = process.env.ISSUER_URL || 'http://localhost:3000';
 const VERIFIER_URL = process.env.VERIFIER_URL || ISSUER_URL;
 const PROJECT_NAME = process.env.PROJECT_NAME || 'Decide';
@@ -22,6 +24,7 @@ const environment = {
   ISSUER_PRIVATE_KEY: process.env.ISSUER_PRIVATE_KEY,
   ISSUER_NAME: process.env.ISSUER_NAME || `${PROJECT_NAME} OID4VC Issuer`,
   ISSUER_URL,
+  LOG_LEVEL: process.env.LOG_LEVEL || 'info',
   LOGO_URL: process.env.LOGO_URL || `${ISSUER_URL}/assets/logo.png`,
   NO_DID_PREFIX: process.env.NO_DID_PREFIX === 'true', // because of old spec versions, some wallets break without this
   PROJECT_NAME,
@@ -44,7 +47,7 @@ const environment = {
     'https://github.com/lblod/oid4vc-login-service',
 };
 
-console.log('Environment:', JSON.stringify(environment, null, 2));
+logger.debug('Environment:', JSON.stringify(environment, null, 2));
 const requiredVars = [
   'ISSUER_DID',
   'ISSUER_KEY_ID',
@@ -55,7 +58,7 @@ const requiredVars = [
 ];
 for (const varName of requiredVars) {
   if (!environment[varName as keyof typeof environment]) {
-    console.error(`Error: ${varName} environment variable is not set`);
+    logger.error(`Error: ${varName} environment variable is not set`);
     process.exit(1);
   }
 }

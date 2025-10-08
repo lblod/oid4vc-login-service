@@ -10,6 +10,7 @@ import {
   getVctSchema,
 } from '../utils/credential-format';
 import { VCIssuer } from '../services/issuer';
+import { logger } from '../utils/logger';
 
 export async function getIssuerRouter(issuer: VCIssuer) {
   const router = Router();
@@ -133,16 +134,16 @@ export async function getIssuerRouter(issuer: VCIssuer) {
     const expectedNonce =
       await issuer.getExpectedNonceForSession(walletSession);
 
-    console.log('body', req.body);
+    logger.debug('body', req.body);
     const { credential_configuration_id, proofs, proof } = req.body;
 
     // 'proof' is because our wallet follows an old version of the spec
     const jwt = proofs?.jwt ? proofs.jwt[0] : proof?.jwt;
-    // TODO logging everything for now to see how far we get with our wallets
-    console.log('Credential config id\n', credential_configuration_id);
-    console.log('Proofs:\n', proofs);
+
+    logger.debug('Credential config id\n', credential_configuration_id);
+    logger.debug('Proofs:\n', proofs);
     const auth = req.get('authorization') as string;
-    console.log('Authorization:\n', auth);
+    logger.debug('Authorization:\n', auth);
     if (!auth || !auth.startsWith('Bearer ')) {
       res.status(401).send({ error: 'invalid_token' });
       return;
@@ -171,7 +172,7 @@ export async function getIssuerRouter(issuer: VCIssuer) {
     const { did, jwk } = await issuer
       .validateProofAndGetHolderDid(jwt, expectedNonce)
       .catch((e) => {
-        console.error('Error validating proof', e);
+        logger.error('Error validating proof', e);
         res.status(400).send({ error: e.message });
         return { did: null, jwk: null };
       });
@@ -179,8 +180,8 @@ export async function getIssuerRouter(issuer: VCIssuer) {
       return; // we already sent a response in the catch block
     }
 
-    console.log('holder did:', did);
-    console.log('holder jwk:', jwk);
+    logger.debug('holder did:', did);
+    logger.debug('holder jwk:', jwk);
 
     const signedVC = await issuer.issueCredential(did, jwk, sessionInfo);
 

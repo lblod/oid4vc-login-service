@@ -35,15 +35,16 @@
     "@lblod/mu-auth-sudo": "^0.6.1",
     "@sd-jwt/crypto-nodejs": "^0.15.0",
     "@sd-jwt/sd-jwt-vc": "^0.15.1",
+    "@sphereon/did-resolver-key": "0.10.2-unstable.5",
     "body-parser": "^2.2.0",
+    "cron": "^3.1.7",
+    "did-resolver": "^4.1.0",
     "express-promise-router": "^4.1.1",
     "jose": "^6.1.0",
     "jsonld": "^8.3.3",
     "jsonld-document-loader": "^2.3.0",
     "multiformats": "^13.4.1",
-    "did-resolver": "^4.1.0",
     "web-did-resolver": "^2.0.30",
-    "cron": "^3.1.7",
-    "@sphereon/did-resolver-key": "0.10.2-unstable.5"
+    "winston": "^3.18.3"
   }
 }

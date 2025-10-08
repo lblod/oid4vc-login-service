@@ -21,6 +21,7 @@ import { resolveDid } from '../utils/crypto';
 import env from '../utils/environment';
 import { SDJwtVCService } from './sd-jwt-vc';
 import { SessionInfo } from '../utils/credential-format';
+import { logger } from '../utils/logger';
 
 export class VCIssuer {
   ready = false;
@@ -279,7 +280,7 @@ export class VCIssuer {
     const decodedJwtHeader = JSON.parse(atob(jwtHeader));
     const decodedJwtPayload = JSON.parse(atob(jwtPayload));
     if (decodedJwtPayload.nonce !== expectedNonce) {
-      console.log('expected nonce:', expectedNonce);
+      logger.debug('expected nonce:', expectedNonce);
       throw new Error('invalid_nonce');
     }
     const did = decodedJwtHeader.kid;
@@ -288,7 +289,7 @@ export class VCIssuer {
     }
     // validate signature:
     const result = await resolveDid(did).catch((e) => {
-      console.error('failed to resolve did:', e);
+      logger.error('failed to resolve did:', e);
       return null;
     });
     if (!result || !result.didDocument) {
@@ -300,7 +301,7 @@ export class VCIssuer {
       jwt,
       result.didDocument,
     ).catch((e) => {
-      console.error('failed to verify signature:', e);
+      logger.error('failed to verify signature:', e);
       throw new Error('invalid_proof');
     });
 

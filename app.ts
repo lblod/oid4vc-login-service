@@ -9,6 +9,7 @@ import { getIssuerRouter } from './routers/issuer';
 import { getVerifierRouter } from './routers/verifier';
 import { startCleanupCron } from './utils/cleanup-cron';
 import env from './utils/environment';
+import { logger } from './utils/logger';
 
 app.use(
   bodyParser.json({
@@ -51,7 +52,7 @@ async function setup() {
 }
 setup()
   .catch((e) => {
-    console.error('Error setting up services', e);
+    logger.error('Error setting up services', e);
     process.exit(1);
   })
   .then(async () => {

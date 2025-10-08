@@ -17,6 +17,7 @@ import {
   getRequiredClaimsForValidation,
   SessionInfo,
 } from '../utils/credential-format';
+import { logger } from '../utils/logger';
 
 const createSignerVerifier = () => {
   const privateKey = getPrivateKeyAsCryptoKey();
@@ -116,21 +117,21 @@ export class SDJwtVCService {
         },
       },
     );
-    console.log('encodedJwt:', credential);
+    logger.debug('encodedJwt:', credential);
 
     // Holder Receive the credential from the issuer and validate it
     // Return a result of header and payload
     const validated = await this.sdjwt.validate(credential);
-    console.log('validated:', validated);
+    logger.debug('validated:', validated);
 
     // You can decode the SD JWT to get the payload and the disclosures
     const sdJwtToken = await this.sdjwt.decode(credential);
-    console.log('jwt:', sdJwtToken.jwt);
-    console.log('kbJwt:', sdJwtToken.kbJwt);
+    logger.debug('jwt:', sdJwtToken.jwt);
+    logger.debug('kbJwt:', sdJwtToken.kbJwt);
 
     // You can get the keys of the claims from the decoded SD JWT
     const keys = await sdJwtToken.keys(digest);
-    console.log({ keys });
+    logger.debug('keys:', keys);
 
     // You can get the claims from the decoded SD JWT
     const payloads = await sdJwtToken.getClaims(digest);
@@ -138,16 +139,13 @@ export class SDJwtVCService {
     // You can get the presentable keys from the decoded SD JWT
     const presentableKeys = await sdJwtToken.presentableKeys(digest);
 
-    console.log({
+    logger.debug({
       payloads: JSON.stringify(payloads, null, 2),
       disclosures: JSON.stringify(sdJwtToken.disclosures, null, 2),
       claim: JSON.stringify(sdJwtToken.jwt?.payload, null, 2),
       presentableKeys,
     });
 
-    console.log(
-      '================================================================',
-    );
     return credential;
   }
 
@@ -156,7 +154,7 @@ export class SDJwtVCService {
       requiredClaimKeys: getRequiredClaimsForValidation(),
       keyBindingNonce: nonce,
     });
-    console.log('verified:', verified);
+    logger.debug('verified:', verified);
     return verified;
   }
 }

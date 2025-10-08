@@ -1,4 +1,5 @@
 import Router from 'express-promise-router';
+import { logger } from '../utils/logger';
 
 export async function getVerifierRouter(verifier) {
   const router = Router();
@@ -13,9 +14,9 @@ export async function getVerifierRouter(verifier) {
   });
 
   const handleAuthorizationRequest = async function (req, res) {
-    console.log('session:', req.get('mu-session-id'));
-    console.log('body', req.body);
-    console.log('query params', req.query);
+    logger.debug('session:', req.get('mu-session-id'));
+    logger.debug('body', req.body);
+    logger.debug('query params', req.query);
     const originalSession = req.query['original-session'] as string | undefined;
     if (!originalSession) {
       res
@@ -32,7 +33,10 @@ export async function getVerifierRouter(verifier) {
         wallet_metadata,
         wallet_nonce,
       );
-    console.log(JSON.stringify(authorizationRequestData, null, 2));
+    logger.debug(
+      'Authorization request data:\n',
+      JSON.stringify(authorizationRequestData, null, 2),
+    );
     res.type('application/oauth-authz-req+jwt');
     res.send(authorizationRequestData);
   };
@@ -43,8 +47,8 @@ export async function getVerifierRouter(verifier) {
   router.post('/presentation-response', async function (req, res) {
     const currentSession = req.get('mu-session-id') as string;
     const originalSession = req.query['original-session'] as string | undefined;
-    console.log('session:', req.get('mu-session-id'));
-    console.log('body', req.body);
+    logger.debug('session:', req.get('mu-session-id'));
+    logger.debug('body', req.body);
 
     if (!originalSession) {
       res
