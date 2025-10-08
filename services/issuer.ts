@@ -177,7 +177,7 @@ export class VCIssuer {
   async storeCredentialOfferToken(token, sessionUri) {
     const id = uuid();
     const tokenUri = `${this.credentialTokenUriPrefix}${id}`;
-    // TODO i think we should use the account here as the session may be fleeting
+
     await updateSudo(`
       PREFIX ext: <http://mu.semte.ch/vocabularies/ext/>
       PREFIX mu: <http://mu.semte.ch/vocabularies/core/>
@@ -215,9 +215,33 @@ export class VCIssuer {
       }`);
   }
 
-  async generateNonce() {
-    // TODO store and check nonce. we just generate a random nonce for now, we should store and verify it to protect against replay attacks
-    return randomBytes(16).toString('hex');
+  async generateNonce(session: string) {
+    const nonce = randomBytes(16).toString('hex');
+    await updateSudo(`
+      PREFIX ext: <http://mu.semte.ch/vocabularies/ext/>
+      PREFIX dct: <http://purl.org/dc/terms/>
+      INSERT DATA {
+        GRAPH <http://mu.semte.ch/graphs/verifiable-credential-tokens> {
+          ${sparqlEscapeUri(session)} ext:nonce ${sparqlEscapeString(nonce)} ;
+            dct:created ${sparqlEscapeDateTime(new Date())} .
+        }
+      }`);
+    return nonce;
+  }
+
+  async getExpectedNonceForSession(session: string) {
+    const result = await querySudo(`
+      PREFIX ext: <http://mu.semte.ch/vocabularies/ext/>
+      PREFIX dct: <http://purl.org/dc/terms/>
+
+      SELECT ?nonce WHERE {
+        GRAPH <http://mu.semte.ch/graphs/verifiable-credential-tokens> {
+          ${sparqlEscapeUri(session)} ext:nonce ?nonce ;
+            dct:created ?created .
+          FILTER(?created > ${sparqlEscapeDateTime(new Date(Date.now() - env.NONCE_TTL))})
+        }
+      } LIMIT 1`);
+    return result.results.bindings[0]?.nonce.value;
   }
 
   async validateProofAndGetHolderDid(jwt: string) {

@@ -120,7 +120,8 @@ export async function getIssuerRouter(issuer: VCIssuer) {
   });
 
   router.post('/nonce', async function (req, res) {
-    const nonce = await issuer.generateNonce();
+    const session = req.get('mu-session-id') as string;
+    const nonce = await issuer.generateNonce(session);
     res.set('Cache-Control', 'no-store'); // as per spec
     res.send({
       c_nonce: nonce,
@@ -128,6 +129,9 @@ export async function getIssuerRouter(issuer: VCIssuer) {
   });
 
   router.post('/credential', async function (req, res) {
+    const walletSession = req.get('mu-session-id') as string;
+    const expectedNonce = issuer.getExpectedNonceForSession(walletSession);
+
     console.log('body', req.body);
     const { credential_configuration_id, proofs, proof } = req.body;
 
@@ -157,6 +161,19 @@ export async function getIssuerRouter(issuer: VCIssuer) {
       res.status(400).send({ error: 'missing_proof' });
       return;
     }
+    const payload = jwt.split('.')[1];
+    if (!payload) {
+      res.status(400).send({ error: 'invalid_proof' });
+      return;
+    }
+    const decodedPayload = JSON.parse(
+      Buffer.from(payload, 'base64').toString(),
+    );
+    const nonce = decodedPayload.c_nonce;
+    if (!nonce || nonce !== expectedNonce) {
+      res.status(400).send({ error: 'invalid_nonce' });
+      return;
+    }
     const { did, jwk } = await issuer.validateProofAndGetHolderDid(jwt);
     console.log('holder did:', did);
     console.log('holder jwk:', jwk);
@@ -164,7 +181,7 @@ export async function getIssuerRouter(issuer: VCIssuer) {
     const signedVC = await issuer.issueCredential(did, jwk, sessionInfo);
 
     const response = {
-      c_nonce: await issuer.generateNonce(), // for old specs
+      c_nonce: await issuer.generateNonce(walletSession), // for old specs
       c_nonce_expires_in: 300, // yeah... it really doesn't, for old specs
       format: 'vc+sd-jwt', // for old specs
     };

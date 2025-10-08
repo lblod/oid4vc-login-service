@@ -25,6 +25,7 @@ const environment = {
   LOGO_URL: process.env.LOGO_URL || `${ISSUER_URL}/assets/logo.png`,
   NO_DID_PREFIX: process.env.NO_DID_PREFIX === 'true', // because of old spec versions, some wallets break without this
   PROJECT_NAME,
+  NONCE_TTL: parseInt(process.env.NONCE_TTL || '600000'), // 10 minutes
   SINGLE_CREDENTIAL_RESPONSE: process.env.SINGLE_CREDENTIAL_RESPONSE === 'true', // because of old spec versions, some wallets break without this
   TOKEN_TTL: parseInt(process.env.TOKEN_TTL || '86400'), // 24 hours
   VERIFIER_DID: process.env.VERIFIER_DID,

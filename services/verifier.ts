@@ -150,7 +150,7 @@ export class VCVerifier {
     wallet_metadata: string,
     wallet_nonce: string,
   ) {
-    // TODO ignoring for now
+    // ignoring for now, we only support a small set of algorithms so no need to negotiate
     const _walletMetadata = wallet_metadata
       ? JSON.parse(wallet_metadata)
       : undefined;
