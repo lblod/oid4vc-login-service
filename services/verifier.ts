@@ -217,7 +217,7 @@ export class VCVerifier {
         iss: env.VERIFIER_DID,
         typ: 'oauth-authz-req+jwt',
       })
-      .sign(getPrivateKeyAsCryptoKey());
+      .sign(getPrivateKeyAsCryptoKey(env.VERIFIER_PRIVATE_KEY));
 
     await this.updateAuthorizationRequestStatus(originalSession, 'received');
 
@@ -261,6 +261,10 @@ export class VCVerifier {
           originalSession,
           payload as SessionInfo,
         );
+
+        if (!(await this.isTrustedIssuer(res))) {
+          throw new Error('Credential issuer is not trusted');
+        }
         logger.debug('Credential verified successfully', res);
         await this.updateAuthorizationRequestStatus(
           originalSession,
@@ -374,5 +378,13 @@ export class VCVerifier {
         }
       }
     `);
+  }
+
+  async isTrustedIssuer(credentialVerificationResult) {
+    // async in case we ever want to make this more complex
+
+    return env.TRUSTED_ISSUERS.includes(
+      credentialVerificationResult.payload.iss,
+    );
   }
 }

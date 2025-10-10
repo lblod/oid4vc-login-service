@@ -31,8 +31,12 @@ const environment = {
   NONCE_TTL: parseInt(process.env.NONCE_TTL || '600000'), // 10 minutes
   SINGLE_CREDENTIAL_RESPONSE: process.env.SINGLE_CREDENTIAL_RESPONSE === 'true', // because of old spec versions, some wallets break without this
   TOKEN_TTL: parseInt(process.env.TOKEN_TTL || '86400'), // 24 hours
+  TRUSTED_ISSUERS: (process.env.TRUSTED_ISSUERS || process.env.ISSUER_DID)
+    .split(',')
+    .map((did) => did.trim()), // comma separated list of DIDs
   VERIFIER_DID: process.env.VERIFIER_DID,
   VERIFIER_KEY_ID: process.env.VERIFIER_KEY_ID,
+  VERIFIER_PRIVATE_KEY: process.env.VERIFIER_PRIVATE_KEY,
   VERIFIER_URL,
   USER_GRAPH_TEMPLATE:
     process.env.USER_GRAPH_TEMPLATE ||
@@ -55,6 +59,7 @@ const requiredVars = [
   'ISSUER_PRIVATE_KEY',
   'VERIFIER_DID',
   'VERIFIER_KEY_ID',
+  'VERIFIER_PRIVATE_KEY',
 ];
 for (const varName of requiredVars) {
   if (!environment[varName as keyof typeof environment]) {

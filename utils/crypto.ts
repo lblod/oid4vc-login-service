@@ -95,13 +95,13 @@ function publicKeyDerEncode({ publicKeyBytes }) {
 
 let privateKeyAsCryptoKey: Crypto.KeyObject | null = null;
 
-export function getPrivateKeyAsCryptoKey() {
+export function getPrivateKeyAsCryptoKey(key = env.ISSUER_PRIVATE_KEY) {
   if (privateKeyAsCryptoKey) {
     return privateKeyAsCryptoKey;
   }
   privateKeyAsCryptoKey = Crypto.createPrivateKey({
     key: privateKeyDerEncode({
-      privateKeyBytes: getPrivateKeyBuffer(env.ISSUER_PRIVATE_KEY),
+      privateKeyBytes: getPrivateKeyBuffer(key),
     }),
     format: 'der',
     type: 'pkcs8',
