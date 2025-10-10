@@ -93,20 +93,21 @@ function publicKeyDerEncode({ publicKeyBytes }) {
   return Buffer.concat([DER_PUBLIC_KEY_PREFIX, publicKeyBytes]);
 }
 
-let privateKeyAsCryptoKey: Crypto.KeyObject | null = null;
+const privateKeyAsCryptoKey: { [key: string]: Crypto.KeyObject | null } = {};
 
 export function getPrivateKeyAsCryptoKey(key = env.ISSUER_PRIVATE_KEY) {
-  if (privateKeyAsCryptoKey) {
-    return privateKeyAsCryptoKey;
+  if (privateKeyAsCryptoKey[key]) {
+    return privateKeyAsCryptoKey[key];
   }
-  privateKeyAsCryptoKey = Crypto.createPrivateKey({
+  const privateKey = Crypto.createPrivateKey({
     key: privateKeyDerEncode({
       privateKeyBytes: getPrivateKeyBuffer(key),
     }),
     format: 'der',
     type: 'pkcs8',
   });
-  return privateKeyAsCryptoKey;
+  privateKeyAsCryptoKey[key] = privateKey;
+  return privateKey;
 }
 
 let publicKeyAsCryptoKey: Crypto.KeyObject | null = null;
