@@ -212,7 +212,7 @@ export async function getIssuerRouter(issuer: VCIssuer) {
 
   router.get('/issuance-status', async (req, res) => {
     const session = req.get('mu-session-id') as string;
-    const status = issuer.getIssuanceStatus(session);
+    const { status } = await issuer.getIssuanceStatus(session);
 
     res.send({ status });
   });
