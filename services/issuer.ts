@@ -130,7 +130,8 @@ export class VCIssuer {
       } WHERE {
         GRAPH ${sparqlEscapeUri(env.WORKING_GRAPH)} {
           ?s a ext:IssuanceStatus ;
-            ext:session ${sparqlEscapeUri(sessionUri)} .
+            ext:session ${sparqlEscapeUri(sessionUri)} ;
+            ?p ?o .
         }
       }`);
 
@@ -147,6 +148,7 @@ export class VCIssuer {
             mu:uuid ${sparqlEscapeString(token)} ;
             ext:session ${sparqlEscapeUri(sessionUri)} ;
             dct:modified ${sparqlEscapeDateTime(new Date())} ;
+            ext:status "pending" ;
             dct:created ${sparqlEscapeDateTime(new Date())} .
         }
       }`);
