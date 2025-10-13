@@ -59,7 +59,7 @@ if (environment.AUTH_CODE_TTL > environment.TOKEN_TTL) {
   process.exit(1);
 }
 
-logger.debug('Environment:', JSON.stringify(environment, null, 2));
+logger.debug(`Environment: ${JSON.stringify(environment, null, 2)}`);
 const requiredVars = [
   'ISSUER_DID',
   'ISSUER_KEY_ID',

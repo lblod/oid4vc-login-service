@@ -117,21 +117,21 @@ export class SDJwtVCService {
         },
       },
     );
-    logger.debug('encodedJwt:', credential);
+    logger.debug(`encodedJwt: ${credential}`);
 
     // Holder Receive the credential from the issuer and validate it
     // Return a result of header and payload
     const validated = await this.sdjwt.validate(credential);
-    logger.debug('validated:', validated);
+    logger.debug(`validated: ${validated}`);
 
     // You can decode the SD JWT to get the payload and the disclosures
     const sdJwtToken = await this.sdjwt.decode(credential);
-    logger.debug('jwt:', sdJwtToken.jwt);
-    logger.debug('kbJwt:', sdJwtToken.kbJwt);
+    logger.debug(`jwt: ${sdJwtToken.jwt}`);
+    logger.debug(`kbJwt: ${sdJwtToken.kbJwt}`);
 
     // You can get the keys of the claims from the decoded SD JWT
     const keys = await sdJwtToken.keys(digest);
-    logger.debug('keys:', keys);
+    logger.debug(`keys: ${JSON.stringify(keys, null, 2)}`);
 
     // You can get the claims from the decoded SD JWT
     const payloads = await sdJwtToken.getClaims(digest);
@@ -154,7 +154,7 @@ export class SDJwtVCService {
       requiredClaimKeys: getRequiredClaimsForValidation(),
       keyBindingNonce: nonce,
     });
-    logger.debug('verified:', verified);
+    logger.debug(`verified: ${verified}`);
     return verified;
   }
 }

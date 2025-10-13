@@ -52,7 +52,7 @@ async function setup() {
 }
 setup()
   .catch((e) => {
-    logger.error('Error setting up services', e);
+    logger.error(`Error setting up services: ${e}`);
     process.exit(1);
   })
   .then(async () => {

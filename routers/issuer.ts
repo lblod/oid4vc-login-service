@@ -138,16 +138,16 @@ export async function getIssuerRouter(issuer: VCIssuer) {
     const expectedNonce =
       await issuer.getExpectedNonceForSession(walletSession);
 
-    logger.debug('body', req.body);
+    logger.debug(`body: ${JSON.stringify(req.body, null, 2)}`);
     const { credential_configuration_id, proofs, proof } = req.body;
 
     // 'proof' is because our wallet follows an old version of the spec
     const jwt = proofs?.jwt ? proofs.jwt[0] : proof?.jwt;
 
-    logger.debug('Credential config id\n', credential_configuration_id);
-    logger.debug('Proofs:\n', proofs);
+    logger.debug(`Credential config id: ${credential_configuration_id}`);
+    logger.debug(`Proofs: ${JSON.stringify(proofs, null, 2)}`);
     const auth = req.get('authorization') as string;
-    logger.debug('Authorization:\n', auth);
+    logger.debug(`Authorization: ${auth}`);
     if (!auth || !auth.startsWith('Bearer ')) {
       res.status(401).send({ error: 'invalid_token' });
       return;
@@ -176,7 +176,7 @@ export async function getIssuerRouter(issuer: VCIssuer) {
     const { did, jwk } = await issuer
       .validateProofAndGetHolderDid(jwt, expectedNonce)
       .catch((e) => {
-        logger.error('Error validating proof', e);
+        logger.error(`Error validating proof: ${e}`);
         res.status(400).send({ error: e.message });
         return { did: null, jwk: null };
       });
@@ -184,8 +184,8 @@ export async function getIssuerRouter(issuer: VCIssuer) {
       return; // we already sent a response in the catch block
     }
 
-    logger.debug('holder did:', did);
-    logger.debug('holder jwk:', jwk);
+    logger.debug(`holder did: ${did}`);
+    logger.debug(`holder jwk: ${jwk}`);
 
     const signedVC = await issuer.issueCredential(
       did,

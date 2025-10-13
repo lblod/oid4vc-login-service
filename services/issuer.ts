@@ -308,7 +308,7 @@ export class VCIssuer {
     const decodedJwtHeader = JSON.parse(atob(jwtHeader));
     const decodedJwtPayload = JSON.parse(atob(jwtPayload));
     if (decodedJwtPayload.nonce !== expectedNonce) {
-      logger.debug('expected nonce:', expectedNonce);
+      logger.debug(`expected nonce: ${expectedNonce}`);
       throw new Error('invalid_nonce');
     }
     const did = decodedJwtHeader.kid;
@@ -317,7 +317,7 @@ export class VCIssuer {
     }
     // validate signature:
     const result = await resolveDid(did).catch((e) => {
-      logger.error('failed to resolve did:', e);
+      logger.error(`failed to resolve did: ${e}`);
       return null;
     });
     if (!result || !result.didDocument) {
@@ -329,7 +329,7 @@ export class VCIssuer {
       jwt,
       result.didDocument,
     ).catch((e) => {
-      logger.error('failed to verify signature:', e);
+      logger.error(`failed to verify signature: ${e}`);
       throw new Error('invalid_proof');
     });
 

@@ -250,8 +250,10 @@ export class VCVerifier {
     }
     const credential = vp_token.roles_credential;
 
-    logger.debug('payload:', payload);
-    logger.debug('protectedHeader:', protectedHeader);
+    logger.debug(`payload: ${JSON.stringify(payload, null, 2)}`);
+    logger.debug(
+      `protectedHeader: ${JSON.stringify(protectedHeader, null, 2)}`,
+    );
 
     const verified = await this.sdJwtService
       .validateAndDecodeCredential(credential, nonce)
@@ -265,7 +267,9 @@ export class VCVerifier {
         if (!(await this.isTrustedIssuer(res))) {
           throw new Error('Credential issuer is not trusted');
         }
-        logger.debug('Credential verified successfully', res);
+        logger.debug(
+          `Credential verified successfully: ${JSON.stringify(res, null, 2)}`,
+        );
         await this.updateAuthorizationRequestStatus(
           originalSession,
           'accepted',
@@ -274,7 +278,7 @@ export class VCVerifier {
         return res;
       })
       .catch(async (e) => {
-        logger.error('Error verifying credential:', e);
+        logger.error(`Error verifying credential: ${e}`);
         await this.updateAuthorizationRequestStatus(
           originalSession,
           'rejected',
