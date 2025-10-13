@@ -30,7 +30,7 @@ const environment = {
   PROJECT_NAME,
   NONCE_TTL: parseInt(process.env.NONCE_TTL || '600000'), // 10 minutes
   SINGLE_CREDENTIAL_RESPONSE: process.env.SINGLE_CREDENTIAL_RESPONSE === 'true', // because of old spec versions, some wallets break without this
-  TOKEN_TTL: parseInt(process.env.TOKEN_TTL || '86400'), // 24 hours
+  TOKEN_TTL: parseInt(process.env.TOKEN_TTL || '600000'), // 10 minutes
   TRUSTED_ISSUERS: (process.env.TRUSTED_ISSUERS || process.env.ISSUER_DID)
     .split(',')
     .map((did) => did.trim()), // comma separated list of DIDs
@@ -49,7 +49,15 @@ const environment = {
   SERVICE_HOMEPAGE:
     process.env.SERVICE_HOMEPAGE ||
     'https://github.com/lblod/oid4vc-login-service',
+  WORKING_GRAPH:
+    process.env.WORKING_GRAPH ||
+    'http://mu.semte.ch/graphs/verifiable-credentials/temp',
 };
+
+if (environment.AUTH_CODE_TTL > environment.TOKEN_TTL) {
+  logger.error('Error: AUTH_CODE_TTL cannot be greater than TOKEN_TTL');
+  process.exit(1);
+}
 
 logger.debug('Environment:', JSON.stringify(environment, null, 2));
 const requiredVars = [

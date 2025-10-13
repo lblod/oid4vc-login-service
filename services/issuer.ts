@@ -85,8 +85,15 @@ export class VCIssuer {
   }
 
   // jwk is the public key that corresponds to the did (we already resolved it during verification, so let's not do so again)
-  async issueCredential(holderDid: string, jwk, sessionInfo: SessionInfo) {
-    return this.sdJwtService.buildCredential(holderDid, jwk, sessionInfo);
+  async issueCredential(
+    holderDid: string,
+    jwk,
+    sessionInfo: SessionInfo,
+    walletSession: string,
+  ) {
+    const res = this.sdJwtService.buildCredential(holderDid, jwk, sessionInfo);
+    await this.updateIssuanceStatusForWalletSession(walletSession, 'issued');
+    return res;
   }
 
   async buildCredentialOfferUri(sessionUri: string) {
@@ -116,15 +123,30 @@ export class VCIssuer {
 
     await updateSudo(`
       PREFIX ext: <http://mu.semte.ch/vocabularies/ext/>
+      DELETE {
+        GRAPH ${sparqlEscapeUri(env.WORKING_GRAPH)} {
+          ?s ?p ?o.
+        }
+      } WHERE {
+        GRAPH ${sparqlEscapeUri(env.WORKING_GRAPH)} {
+          ?s a ext:IssuanceStatus ;
+            ext:session ${sparqlEscapeUri(sessionUri)} .
+        }
+      }`);
+
+    // need to use the token for the issuance status as we need to link walletsession to it later
+    await updateSudo(`
+      PREFIX ext: <http://mu.semte.ch/vocabularies/ext/>
       PREFIX mu: <http://mu.semte.ch/vocabularies/core/>
       PREFIX dct: <http://purl.org/dc/terms/>
 
       INSERT DATA {
-        GRAPH <http://mu.semte.ch/graphs/verifiable-credential-tokens> {
-          ${sparqlEscapeUri(tokenUri)} a ext:CredentialOfferAuthCode ;
+        GRAPH ${sparqlEscapeUri(env.WORKING_GRAPH)} {
+          ${sparqlEscapeUri(tokenUri)} a ext:CredentialOfferAuthCode, ext:IssuanceStatus ;
             ext:issuerUrl ${sparqlEscapeString(env.ISSUER_URL)} ;
             mu:uuid ${sparqlEscapeString(token)} ;
             ext:session ${sparqlEscapeUri(sessionUri)} ;
+            dct:modified ${sparqlEscapeDateTime(new Date())} ;
             dct:created ${sparqlEscapeDateTime(new Date())} .
         }
       }`);
@@ -137,7 +159,7 @@ export class VCIssuer {
       PREFIX dct: <http://purl.org/dc/terms/>
 
       SELECT ?session {
-        GRAPH <http://mu.semte.ch/graphs/verifiable-credential-tokens> {
+        GRAPH ${sparqlEscapeUri(env.WORKING_GRAPH)} {
           ?token a ext:CredentialOfferAuthCode .
           ?token ext:issuerUrl ${sparqlEscapeString(env.ISSUER_URL)} .
           ?token mu:uuid ${sparqlEscapeString(token)} .
@@ -150,28 +172,34 @@ export class VCIssuer {
   }
 
   async removeOldCredentialAuthCodes() {
+    // note: using tokenTTL here instead of authCodeTTL to be sure we don't remove codes that are still in use by wallets
+    // we need them for session tracking
     await updateSudo(`
       PREFIX ext: <http://mu.semte.ch/vocabularies/ext/>
       PREFIX dct: <http://purl.org/dc/terms/>
 
       DELETE {
-        GRAPH ?g {
+        GRAPH ${sparqlEscapeUri(env.WORKING_GRAPH)} {
           ?token ?p ?o.
         }
       } WHERE {
-        GRAPH ?g {
+        GRAPH ${sparqlEscapeUri(env.WORKING_GRAPH)} {
           ?token a ext:CredentialOfferAuthCode .
           ?token ext:issuerUrl ${sparqlEscapeString(env.ISSUER_URL)} .
           ?token dct:created ?created .
-          FILTER(?created < ${sparqlEscapeDateTime(new Date(Date.now() - this.authCodeTTL))})
+          FILTER(?created < ${sparqlEscapeDateTime(new Date(Date.now() - this.tokenTTL))})
           ?token ?p ?o.
         }
       }`);
   }
 
-  async generateCredentialOfferToken(sessionUri) {
+  async generateCredentialOfferToken(
+    sessionUri: string,
+    walletSession: string,
+  ) {
     const token = randomBytes(512).toString('hex');
     await this.storeCredentialOfferToken(token, sessionUri);
+    await this.markIssuanceStatusReceived(sessionUri, walletSession);
     return token;
   }
 
@@ -185,7 +213,7 @@ export class VCIssuer {
       PREFIX dct: <http://purl.org/dc/terms/>
 
       INSERT DATA {
-        GRAPH <http://mu.semte.ch/graphs/verifiable-credential-tokens> {
+        GRAPH ${sparqlEscapeUri(env.WORKING_GRAPH)} {
           ${sparqlEscapeUri(tokenUri)} a ext:CredentialOfferToken ;
             ext:issuerUrl ${sparqlEscapeString(env.ISSUER_URL)} ;
             mu:uuid ${sparqlEscapeString(id)} ;
@@ -202,11 +230,11 @@ export class VCIssuer {
       PREFIX dct: <http://purl.org/dc/terms/>
 
       DELETE {
-        GRAPH ?g {
+        GRAPH ${sparqlEscapeUri(env.WORKING_GRAPH)} {
           ?token ?p ?o.
         }
       } WHERE {
-        GRAPH ?g {
+        GRAPH ${sparqlEscapeUri(env.WORKING_GRAPH)} {
           ?token a ext:CredentialOfferToken .
           ?token ext:issuerUrl ${sparqlEscapeString(env.ISSUER_URL)} .
           ?token dct:created ?created .
@@ -222,12 +250,12 @@ export class VCIssuer {
       PREFIX ext: <http://mu.semte.ch/vocabularies/ext/>
 
       DELETE {
-        GRAPH <http://mu.semte.ch/graphs/verifiable-credential-tokens> {
+        GRAPH ${sparqlEscapeUri(env.WORKING_GRAPH)} {
           ${sparqlEscapeUri(session)} ext:nonce ?oldNonce ;
             ext:nonceCreated ?created .
         }
       } WHERE {
-        GRAPH <http://mu.semte.ch/graphs/verifiable-credential-tokens> {
+        GRAPH ${sparqlEscapeUri(env.WORKING_GRAPH)} {
           ${sparqlEscapeUri(session)} ext:nonce ?oldNonce ;
             ext:nonceCreated ?created .
         }
@@ -235,7 +263,7 @@ export class VCIssuer {
     await updateSudo(`
       PREFIX ext: <http://mu.semte.ch/vocabularies/ext/>
       INSERT DATA {
-        GRAPH <http://mu.semte.ch/graphs/verifiable-credential-tokens> {
+        GRAPH ${sparqlEscapeUri(env.WORKING_GRAPH)} {
           ${sparqlEscapeUri(session)} ext:nonce ${sparqlEscapeString(nonce)} ;
             ext:nonceCreated ${sparqlEscapeDateTime(new Date())} .
         }
@@ -248,7 +276,7 @@ export class VCIssuer {
       PREFIX ext: <http://mu.semte.ch/vocabularies/ext/>
 
       SELECT ?nonce WHERE {
-        GRAPH <http://mu.semte.ch/graphs/verifiable-credential-tokens> {
+        GRAPH ${sparqlEscapeUri(env.WORKING_GRAPH)} {
           ${sparqlEscapeUri(session)} ext:nonce ?nonce ;
             ext:nonceCreated ?created .
           FILTER(?created > ${sparqlEscapeDateTime(new Date(Date.now() - env.NONCE_TTL))})
@@ -262,12 +290,12 @@ export class VCIssuer {
       PREFIX ext: <http://mu.semte.ch/vocabularies/ext/>
 
       DELETE {
-        GRAPH <http://mu.semte.ch/graphs/verifiable-credential-tokens> {
+        GRAPH ${sparqlEscapeUri(env.WORKING_GRAPH)} {
           ?session ext:nonce ?nonce ;
             ext:nonceCreated ?created .
         }
       } WHERE {
-        GRAPH <http://mu.semte.ch/graphs/verifiable-credential-tokens> {
+        GRAPH ${sparqlEscapeUri(env.WORKING_GRAPH)} {
           ?session ext:nonce ?nonce ;
             ext:nonceCreated ?created .
           FILTER(?created < ${sparqlEscapeDateTime(new Date(Date.now() - env.NONCE_TTL))})
@@ -336,5 +364,90 @@ export class VCIssuer {
     const jwtKey = await jose.importJWK(publicKeyJwk, alg);
     await jose.jwtVerify(originalJwt, jwtKey);
     return publicKeyJwk;
+  }
+
+  async markIssuanceStatusReceived(sessionUri: string, walletSession: string) {
+    await updateSudo(`
+      PREFIX ext: <http://mu.semte.ch/vocabularies/ext/>
+      PREFIX dct: <http://purl.org/dc/terms/>
+
+      DELETE {
+        GRAPH ${sparqlEscapeUri(env.WORKING_GRAPH)} {
+          ?s a ext:IssuanceStatus ;
+            ext:status ?status ;
+            ext:walletSession ?ws ;
+            dct:modified ?modified .
+        }
+      } INSERT {
+        GRAPH ${sparqlEscapeUri(env.WORKING_GRAPH)} {
+          ?s a ext:IssuanceStatus ;
+            ext:walletSession ${sparqlEscapeUri(walletSession)} ;
+            ext:status "received" ;
+            dct:modified ${sparqlEscapeDateTime(new Date())} .
+        }
+      } WHERE {
+        GRAPH ${sparqlEscapeUri(env.WORKING_GRAPH)} {
+          ?s a ext:IssuanceStatus ;
+            ext:session ${sparqlEscapeUri(sessionUri)} ;
+            ext:status ?status ;
+            dct:modified ?modified .
+          OPTIONAL { ?s ext:walletSession ?ws . }
+        }
+      }`);
+  }
+
+  async updateIssuanceStatusForWalletSession(
+    walletSession: string,
+    status: 'issued' | 'error',
+  ) {
+    await updateSudo(`
+      PREFIX ext: <http://mu.semte.ch/vocabularies/ext/>
+      PREFIX dct: <http://purl.org/dc/terms/>
+
+      DELETE {
+        GRAPH ${sparqlEscapeUri(env.WORKING_GRAPH)} {
+          ?s a ext:IssuanceStatus ;
+            ext:status ?status ;
+            dct:modified ?modified .
+        }
+      } INSERT {
+        GRAPH ${sparqlEscapeUri(env.WORKING_GRAPH)} {
+          ?s a ext:IssuanceStatus ;
+            ext:status ${sparqlEscapeString(status)} ;
+            dct:modified ${sparqlEscapeDateTime(new Date())} .
+        }
+      } WHERE {
+        GRAPH ${sparqlEscapeUri(env.WORKING_GRAPH)} {
+          ?s a ext:IssuanceStatus ;
+            ext:walletSession ${sparqlEscapeUri(walletSession)} ;
+            ext:status ?status ;
+            dct:modified ?modified .
+        }
+      }`);
+  }
+
+  async getIssuanceStatus(sessionUri: string) {
+    const result = await querySudo(`
+      PREFIX ext: <http://mu.semte.ch/vocabularies/ext/>
+      PREFIX dct: <http://purl.org/dc/terms/>
+
+      SELECT ?status ?created ?modified WHERE {
+        GRAPH ${sparqlEscapeUri(env.WORKING_GRAPH)} {
+          ?s a ext:IssuanceStatus ;
+            ext:session ${sparqlEscapeUri(sessionUri)} ;
+            ext:status ?status ;
+            dct:modified ?modified ;
+            dct:created ?created .
+        }
+      }`);
+    if (result.results.bindings.length === 0) {
+      return null;
+    }
+    const { status, created, modified } = result.results.bindings[0];
+    return {
+      status: status.value,
+      created: created.value,
+      modified: modified.value,
+    };
   }
 }

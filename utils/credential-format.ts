@@ -155,7 +155,7 @@ export const getSessionInfoForCredentialOfferToken = async (token: string) => {
       PREFIX foaf: <http://xmlns.com/foaf/0.1/>
 
       SELECT ?accountUri ?accountId ?userUri ?userId ?firstName ?lastName ?group ?role {
-        GRAPH <http://mu.semte.ch/graphs/verifiable-credential-tokens> {
+        GRAPH ${sparqlEscapeUri(env.WORKING_GRAPH)} {
           ?token a ext:CredentialOfferToken .
           ?token ext:issuerUrl ${sparqlEscapeString(env.ISSUER_URL)} .
           ?token ext:authToken ${sparqlEscapeString(token)} .

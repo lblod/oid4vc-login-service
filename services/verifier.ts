@@ -52,7 +52,7 @@ export class VCVerifier {
       PREFIX ext: <http://mu.semte.ch/vocabularies/ext/>
       PREFIX dct: <http://purl.org/dc/terms/>
       INSERT DATA {
-        GRAPH <http://mu.semte.ch/graphs/decide/verifier> {
+        GRAPH ${sparqlEscapeUri(env.WORKING_GRAPH)} {
           ${sparqlEscapeUri(uri)} a ext:AuthorizationRequest ;
             ext:verifierUrl ${sparqlEscapeString(env.VERIFIER_URL)} ;
             ext:session ${sparqlEscapeUri(session)} ;
@@ -67,11 +67,11 @@ export class VCVerifier {
     await updateSudo(`
       PREFIX ext: <http://mu.semte.ch/vocabularies/ext/>
       DELETE {
-        GRAPH <http://mu.semte.ch/graphs/decide/verifier> {
+        GRAPH ${sparqlEscapeUri(env.WORKING_GRAPH)} {
           ?authRequest ?p ?o .
         }
       } WHERE {
-        GRAPH <http://mu.semte.ch/graphs/decide/verifier> {
+        GRAPH ${sparqlEscapeUri(env.WORKING_GRAPH)} {
           ?authRequest a ext:AuthorizationRequest ;
             ext:verifierUrl ${sparqlEscapeString(env.VERIFIER_URL)} ;
             ext:session ${sparqlEscapeUri(session)} ;
@@ -85,7 +85,7 @@ export class VCVerifier {
     const result = await querySudo(`
       PREFIX ext: <http://mu.semte.ch/vocabularies/ext/>
       SELECT ?status WHERE {
-        GRAPH <http://mu.semte.ch/graphs/decide/verifier> {
+        GRAPH ${sparqlEscapeUri(env.WORKING_GRAPH)} {
           ?authRequest a ext:AuthorizationRequest ;
             ext:verifierUrl ${sparqlEscapeString(env.VERIFIER_URL)} ;
             ext:session ${sparqlEscapeUri(session)} ;
@@ -104,17 +104,17 @@ export class VCVerifier {
       PREFIX ext: <http://mu.semte.ch/vocabularies/ext/>
       PREFIX dct: <http://purl.org/dc/terms/>
       DELETE {
-        GRAPH <http://mu.semte.ch/graphs/decide/verifier> {
+        GRAPH ${sparqlEscapeUri(env.WORKING_GRAPH)} {
           ?authRequest ext:status ?oldStatus .
           ?authRequest dct:modified ?oldMod .
         }
       } INSERT {
-        GRAPH <http://mu.semte.ch/graphs/decide/verifier> {
+        GRAPH ${sparqlEscapeUri(env.WORKING_GRAPH)} {
           ?authRequest ext:status ${sparqlEscapeString(status)} ;
             dct:modified ${sparqlEscapeDateTime(new Date())} .
         }
       } WHERE {
-        GRAPH <http://mu.semte.ch/graphs/decide/verifier> {
+        GRAPH ${sparqlEscapeUri(env.WORKING_GRAPH)} {
           ?authRequest a ext:AuthorizationRequest ;
             ext:verifierUrl ${sparqlEscapeString(env.VERIFIER_URL)} ;
             ext:session ${sparqlEscapeUri(session)} ;
@@ -130,11 +130,11 @@ export class VCVerifier {
       PREFIX ext: <http://mu.semte.ch/vocabularies/ext/>
       PREFIX dct: <http://purl.org/dc/terms/>
       DELETE {
-        GRAPH <http://mu.semte.ch/graphs/decide/verifier> {
+        GRAPH ${sparqlEscapeUri(env.WORKING_GRAPH)} {
           ?authRequest ?p ?o .
         }
       } WHERE {
-        GRAPH <http://mu.semte.ch/graphs/decide/verifier> {
+        GRAPH ${sparqlEscapeUri(env.WORKING_GRAPH)} {
           ?authRequest a ext:AuthorizationRequest ;
             ext:verifierUrl ${sparqlEscapeString(env.VERIFIER_URL)} ;
             dct:created ?created ;
@@ -301,7 +301,7 @@ export class VCVerifier {
       PREFIX ext: <http://mu.semte.ch/vocabularies/ext/>
       PREFIX dct: <http://purl.org/dc/terms/>
       INSERT DATA {
-        GRAPH <http://mu.semte.ch/graphs/decide/verifier> {
+        GRAPH ${sparqlEscapeUri(env.WORKING_GRAPH)} {
           ${sparqlEscapeUri(uri)} a ext:AuthorizationRequestEphemeralKey ;
             ext:verifierUrl ${sparqlEscapeString(env.VERIFIER_URL)} ;
             ext:session ${sparqlEscapeUri(session)} ;
@@ -317,11 +317,11 @@ export class VCVerifier {
     await updateSudo(`
       PREFIX ext: <http://mu.semte.ch/vocabularies/ext/>
       DELETE {
-        GRAPH <http://mu.semte.ch/graphs/decide/verifier> {
+        GRAPH ${sparqlEscapeUri(env.WORKING_GRAPH)} {
           ?authRequest ext:ephemeralPrivateKey ?privateKey .
         }
       } WHERE {
-        GRAPH <http://mu.semte.ch/graphs/decide/verifier> {
+        GRAPH ${sparqlEscapeUri(env.WORKING_GRAPH)} {
           ?authRequest a ext:AuthorizationRequestEphemeralKey ;
             ext:verifierUrl ${sparqlEscapeString(env.VERIFIER_URL)} ;
             ext:session ${sparqlEscapeUri(session)} ;
@@ -336,7 +336,7 @@ export class VCVerifier {
       PREFIX ext: <http://mu.semte.ch/vocabularies/ext/>
       PREFIX dct: <http://purl.org/dc/terms/>
       SELECT ?nonce ?privateKey WHERE {
-        GRAPH <http://mu.semte.ch/graphs/decide/verifier> {
+        GRAPH ${sparqlEscapeUri(env.WORKING_GRAPH)} {
           ?authRequest a ext:AuthorizationRequestEphemeralKey ;
             ext:verifierUrl ${sparqlEscapeString(env.VERIFIER_URL)} ;
             ext:session ${sparqlEscapeUri(session)} ;
@@ -365,11 +365,11 @@ export class VCVerifier {
       PREFIX ext: <http://mu.semte.ch/vocabularies/ext/>
       PREFIX dct: <http://purl.org/dc/terms/>
       DELETE {
-        GRAPH <http://mu.semte.ch/graphs/decide/verifier> {
+        GRAPH ${sparqlEscapeUri(env.WORKING_GRAPH)} {
           ?authRequest ext:ephemeralPrivateKey ?privateKey .
         }
       } WHERE {
-        GRAPH <http://mu.semte.ch/graphs/decide/verifier> {
+        GRAPH ${sparqlEscapeUri(env.WORKING_GRAPH)} {
           ?authRequest a ext:AuthorizationRequestEphemeralKey ;
             ext:verifierUrl ${sparqlEscapeString(env.VERIFIER_URL)} ;
             dct:created ?created ;

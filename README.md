@@ -39,9 +39,10 @@ For the contents of the certificate, see the VCT in [./utils/credential-format.t
 - **NO_DID_PREFIX**: some wallets break without this due to old spec versions, set to true to omit the `decentralized_identifier:` prefix in the client_id during oid4vp. Default false
 - **NONCE_TTL**: time to live in ms for the nonces as defined in oid4vci and oid4vcp. Default 600000
 - **SINGLE_CREDENTIAL_RESPONSE**: some wallets break without this due to old oid4vci spec versions, set to true to return a single credential using the `credential` prop instead of an array with one element in `credentials`. Default false
-- **TOKEN_TTL**: time to live in seconds for the access tokens as defined in oid4vci. Default 86400
+- **TOKEN_TTL**: time to live in seconds for the access tokens as defined in oid4vci. Default 600000. Token AUTH_CODE_TTL must be <= TOKEN_TTL
 - **TRUSTED_ISSUERS**: comma separated list of trusted issuer DIDs for verification. Defaults to ISSUER_DID
 - **USER_GRAPH_TEMPLATE**: template for user graphs, must contain `{{groupId}}`. Default 'http://mu.semte.ch/graphs/organizations/{{groupId}}'
 - **ACCOUNT_GRAPH_TEMPLATE**: template for account graphs, must contain `{{groupId}}`. Default 'http://mu.semte.ch/graphs/organizations/{{groupId}}'
 - **SESSION_GRAPH**: graph to store session information in. Default 'http://mu.semte.ch/graphs/sessions'
 - **SERVICE_HOMEPAGE**: the uri to use as foaf:accountServiceHomepage for the sessions being created by this service. Defaults to 'https://github.com/lblod/oid4vc-login-service'
+- **WORKING_GRAPH**: the uri of the temporary graph to put data related to the issuance and verification of verifiable credentials. This data is always short-lived, you should be able to delete this graph at any time. Default 'http://mu.semte.ch/graphs/verifiable-credentials/temp'

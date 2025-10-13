@@ -101,6 +101,7 @@ export async function getIssuerRouter(issuer: VCIssuer) {
 
   router.post('/token', async function (req, res) {
     let preAuthorizedCode = req.query['pre-authorized_code'] as string;
+    const walletSession = req.get('mu-session-id') as string;
     if (req.body['pre-authorized_code']) {
       preAuthorizedCode = req.body['pre-authorized_code'] as string;
     }
@@ -112,7 +113,10 @@ export async function getIssuerRouter(issuer: VCIssuer) {
     }
 
     // generate proper token here
-    const token = await issuer.generateCredentialOfferToken(sessionUri);
+    const token = await issuer.generateCredentialOfferToken(
+      sessionUri,
+      walletSession,
+    );
     res.send({
       access_token: token,
       token_type: 'Bearer',
@@ -183,7 +187,12 @@ export async function getIssuerRouter(issuer: VCIssuer) {
     logger.debug('holder did:', did);
     logger.debug('holder jwk:', jwk);
 
-    const signedVC = await issuer.issueCredential(did, jwk, sessionInfo);
+    const signedVC = await issuer.issueCredential(
+      did,
+      jwk,
+      sessionInfo,
+      walletSession,
+    );
 
     const response = {
       c_nonce: await issuer.generateNonce(walletSession), // for old specs
@@ -199,6 +208,13 @@ export async function getIssuerRouter(issuer: VCIssuer) {
     }
 
     res.send(response);
+  });
+
+  router.get('/issuance-status', async (req, res) => {
+    const requestId = req.query['request_id'] as string;
+    const status = issuer.getIssuanceStatus(requestId);
+
+    res.send({ status });
   });
 
   return router;
