@@ -5,7 +5,7 @@ const VERIFIER_URL = process.env.VERIFIER_URL || ISSUER_URL;
 const PROJECT_NAME = process.env.PROJECT_NAME || 'Decide';
 
 const environment = {
-  AUTH_CODE_TTL: parseInt(process.env.AUTH_CODE_TTL || '60000'), // 10 minutes
+  AUTH_CODE_TTL: parseInt(process.env.AUTH_CODE_TTL || '60000'), // 1 minute
   AUTHORIZATION_REQUEST_TTL: parseInt(
     process.env.AUTHORIZATION_REQUEST_TTL || '600000',
   ), // 10 minutes
