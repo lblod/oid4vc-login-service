@@ -2,10 +2,15 @@ import bodyParser from 'body-parser';
 import { app } from 'mu';
 
 // Required to set up a suite instance with private key
-import Router from 'express-promise-router';
-import { VCIssuer } from './issuer-service';
+import { VCIssuer } from './services/issuer';
+import { SDJwtVCService } from './services/sd-jwt-vc';
+import { VCVerifier } from './services/verifier';
+import { getIssuerRouter } from './routers/issuer';
+import { getVerifierRouter } from './routers/verifier';
+import { startCleanupCron } from './utils/cleanup-cron';
+import env from './utils/environment';
+import { logger } from './utils/logger';
 
-const router = Router();
 app.use(
   bodyParser.json({
     limit: '500mb',
@@ -15,36 +20,45 @@ app.use(
     },
   }),
 );
+app.use('/', function (req, res, next) {
+  // mandated by the spec, by default we get application/vnd.api+json in the template
+  res.type('application/json');
+  next();
+});
 
-app.use(router);
-
-const issuer = new VCIssuer();
-issuer
-  .setup({
-    issuerDid: process.env.ISSUER_DID as string,
-    issuerKeyId: process.env.ISSUER_KEY_ID as string,
-    publicKey: process.env.ISSUER_PUBLIC_KEY as string,
-    privateKey: process.env.ISSUER_PRIVATE_KEY as string,
-  })
-  .catch(() => {
-    console.error('Error setting up issuer');
-    process.exit(1);
-  });
-
-router.get('/status', function (req, res) {
+app.get('/status', function (req, res) {
   res.send({
-    service: 'vc-issuer-service',
+    service: 'verifiable-credentials-service',
     status: 'ok',
   });
 });
 
-router.post('/issue-credential', async function (req, res) {
-  const holderDid = req.body.holderDid;
-  const signedVC = await issuer.issueCredential(holderDid);
-  console.log(JSON.stringify(signedVC, null, 2));
+const issuer = new VCIssuer();
+const verifier = new VCVerifier();
+const sdJwtService = new SDJwtVCService();
 
-  // normally you'd verify the presentation, but let's already verify the credential
-  const verificationResult = await issuer.verifyCredential(signedVC);
-  console.log(verificationResult);
-  res.send(signedVC);
-});
+async function setup() {
+  await sdJwtService.setup();
+  await issuer.setup({
+    sdJwtService: sdJwtService,
+    issuerDid: env.ISSUER_DID as string,
+    issuerKeyId: env.ISSUER_KEY_ID as string,
+    publicKey: env.ISSUER_PUBLIC_KEY as string,
+    privateKey: env.ISSUER_PRIVATE_KEY as string,
+  });
+  await verifier.setup({
+    sdJwtService: sdJwtService,
+  });
+}
+setup()
+  .catch((e) => {
+    logger.error(`Error setting up services: ${e}`);
+    process.exit(1);
+  })
+  .then(async () => {
+    startCleanupCron({ issuerService: issuer, verifierService: verifier });
+    const issuerRouter = await getIssuerRouter(issuer);
+    const verifierRouter = await getVerifierRouter(verifier);
+    app.use('/issuer', issuerRouter);
+    app.use('/verifier', verifierRouter);
+  });

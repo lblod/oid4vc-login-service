@@ -8,6 +8,7 @@ services:
     environment:
       TZ: Europe/Brussels
       NODE_ENV: development
+      ISSUER_URL: https://192.168.1.118/ // needs to be accessible from https://192.168.1.118/.well-known/openid-credential-issuer, use the dispatcher. It can contain a path as well, then it would be https://192.168.1.118/.well-known/openid-credential-issuer/your/path/here
     ports:
       - '8081:80'
       - '9228:9229'
@@ -20,3 +21,4 @@ services:
 networks:
   debug:
     external: true
+
