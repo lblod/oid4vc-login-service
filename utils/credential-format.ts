@@ -260,7 +260,7 @@ export const updateSessionWithCredentialInfo = async (
         GRAPH ${sparqlEscapeUri(env.SESSION_GRAPH)} {
           ${sparqlEscapeUri(session)} mu:uuid ${sparqlEscapeString(uuid())} ;
             session:account ${sparqlEscapeUri(accountUri)} ;
-            ext:sessionGroup ${sparqlEscapeString(group)} ;
+            ext:sessionGroup ${sparqlEscapeUri(group)} ;
             ext:sessionRole ${safeRolesString} ;
             dct:modified ${sparqlEscapeDateTime(new Date())} .
         }
