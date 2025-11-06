@@ -57,10 +57,6 @@ export async function getIssuerRouter(issuer: VCIssuer) {
               proof_signing_alg_values_supported: ['ES256'],
             },
           },
-          // repeated for older specs
-          display: getCredentialDisplay(),
-          // repeated for older specs
-          claims: getOldCredentialClaims(),
 
           vct: `${env.ISSUER_URL}`,
           credential_metadata: {

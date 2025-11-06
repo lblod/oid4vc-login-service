@@ -255,8 +255,12 @@ export class VCVerifier {
       `protectedHeader: ${JSON.stringify(protectedHeader, null, 2)}`,
     );
 
+    // old specs don't provide an array here.
+    // we only use the first credential we receive
+    const safeCredential = credential.split ? credential : credential[0];
+
     const verified = await this.sdJwtService
-      .validateAndDecodeCredential(credential, nonce)
+      .validateAndDecodeCredential(safeCredential, nonce)
       .then(async (res) => {
         const payload = res.payload;
         await updateSessionWithCredentialInfo(
