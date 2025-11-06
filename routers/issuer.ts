@@ -196,7 +196,7 @@ export async function getIssuerRouter(issuer: VCIssuer) {
       format: 'vc+sd-jwt', // for old specs
     };
 
-    // old specs want a single credential, newer specs want an array of credentials. paradym breaks if it receives credentials as an array
+    // old specs want a single credential, newer specs want an array of credentials.
     if (env.SINGLE_CREDENTIAL_RESPONSE) {
       response['credential'] = signedVC;
     } else {
