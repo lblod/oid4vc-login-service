@@ -254,7 +254,7 @@ export const updateSessionWithCredentialInfo = async (
       PREFIX ext: <http://mu.semte.ch/vocabularies/ext/>
       PREFIX dct: <http://purl.org/dc/terms/>
       PREFIX mu: <http://mu.semte.ch/vocabularies/core/>
-      PREFIX session: <http://mu.semte.ch/vocabularies/ext/session/>
+      PREFIX session: <http://mu.semte.ch/vocabularies/session/>
 
       INSERT DATA {
         GRAPH ${sparqlEscapeUri(env.SESSION_GRAPH)} {
