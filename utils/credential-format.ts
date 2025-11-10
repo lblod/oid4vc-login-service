@@ -324,7 +324,7 @@ async function getGroupId(groupUri: string) {
   return result.results.bindings[0].groupId.value;
 }
 
-export async function selectAccountBySession(sessionUri: string): Promise<{sessionId: string, accountId: string, groupId: string, roles: string[]}> {
+export async function selectAccountBySession(sessionUri: string): Promise<{account: string, sessionId: string, accountId: string, groupId: string, roles: string[]}> {
 
   const accountGraphPrefix = env.ACCOUNT_GRAPH_TEMPLATE.replace('{{groupId}}', '');
 
@@ -333,7 +333,7 @@ export async function selectAccountBySession(sessionUri: string): Promise<{sessi
     PREFIX ext: <http://mu.semte.ch/vocabularies/ext/>
     PREFIX session: <http://mu.semte.ch/vocabularies/session/>
     
-    SELECT ?session_uuid ?group_uuid ?account_uuid (GROUP_CONCAT(?role; SEPARATOR = ',') as ?roles) WHERE {
+    SELECT ?session_uuid ?group_uuid ?account ?account_uuid (GROUP_CONCAT(?role; SEPARATOR = ',') as ?roles) WHERE {
       GRAPH ${sparqlEscapeUri(env.SESSION_GRAPH)} {
         ${sparqlEscapeUri(sessionUri)}
           mu:uuid ?session_uuid;
@@ -348,17 +348,29 @@ export async function selectAccountBySession(sessionUri: string): Promise<{sessi
       GRAPH ?accountGraph {
         ?account mu:uuid ?account_uuid .
       }
-    } GROUP BY ?session_uuid ?group_uuid ?account_uuid ?accountGraph ?groupGraph
+    } GROUP BY ?session_uuid ?group_uuid ?account ?account_uuid ?accountGraph ?groupGraph
      LIMIT 1
   `);
   if (result.results.bindings.length === 0) {
     throw new Error(`No account found for session ${sessionUri}`);
   }
-  const binding = result.results.bindings[0]
+  const binding = result.results.bindings[0];
   return {
+    account: binding.account.value,
     sessionId: binding.session_uuid?.value,
     groupId: binding.group_uuid?.value,
     accountId: binding.account_uuid?.value,
     roles: binding.roles.value.split(",")
   }
+}
+
+export async function deleteSession(account: string): Promise<void> {
+  return await updateSudo(`
+    PREFIX session: <http://mu.semte.ch/vocabularies/session/>
+    DELETE WHERE {
+      GRAPH ${sparqlEscapeUri(env.SESSION_GRAPH)} {
+        ?session session:account ${sparqlEscapeUri(account)};
+          ?p ?o.
+      }
+    }`);
 }

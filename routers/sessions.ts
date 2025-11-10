@@ -1,12 +1,15 @@
 import Router from 'express-promise-router';
-import { selectAccountBySession } from '../utils/credential-format';
+import { selectAccountBySession, deleteSession } from '../utils/credential-format';
 
 export async function getSessionsRouter() {
   const router = Router();
 
   router.get('/current', async function (req, res) {
-    const sessionUri = req.get('mu-session-id') as string;
-    const { groupId, accountId, sessionId, roles } = await selectAccountBySession(sessionUri)
+    const sessionUri = req.get('mu-session-id');
+    if (!sessionUri)
+      throw new Error("Session header is missing");
+
+    const { groupId, accountId, sessionId, roles } = await selectAccountBySession(sessionUri);
 
     res.send({
       links: {
@@ -42,5 +45,16 @@ export async function getSessionsRouter() {
     });
   });
 
+  router.delete('/current', async function (req, res) {
+    const sessionUri = req.get('mu-session-id');
+    if (!sessionUri)
+      throw new Error("Session header is missing")
+
+    const { account } = await selectAccountBySession(sessionUri)
+    await deleteSession(account)
+    res.append('mu-auth-allowed-groups', 'CLEAR')
+    res.sendStatus(204)
+  });
+
   return router;
-}
+};
