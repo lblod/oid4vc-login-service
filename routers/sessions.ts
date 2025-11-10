@@ -17,16 +17,16 @@ export async function getSessionsRouter() {
         id: sessionId,
         attributes: {
           roles
-        },
-        relationships: {
-          account: {
-            links: {
-               related: `/accounts/${accountId}`
-            },
-            data: {
-              type: 'accounts',
-              id: accountId
-            }
+        }
+      },
+      relationships: {
+        account: {
+          links: {
+              related: `/accounts/${accountId}`
+          },
+          data: {
+            type: 'accounts',
+            id: accountId
           }
         },
         group: {
