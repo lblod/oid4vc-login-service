@@ -324,9 +324,19 @@ async function getGroupId(groupUri: string) {
   return result.results.bindings[0].groupId.value;
 }
 
-export async function selectAccountBySession(sessionUri: string): Promise<{account: string, sessionId: string, accountId: string, groupId: string, roles: string[]}> {
-
-  const accountGraphPrefix = env.ACCOUNT_GRAPH_TEMPLATE.replace('{{groupId}}', '');
+export async function selectAccountBySession(
+  sessionUri: string,
+): Promise<{
+  account: string;
+  sessionId: string;
+  accountId: string;
+  groupId: string;
+  roles: string[];
+}> {
+  const accountGraphPrefix = env.ACCOUNT_GRAPH_TEMPLATE.replace(
+    '{{groupId}}',
+    '',
+  );
 
   const result = await querySudo(`
     PREFIX mu: <http://mu.semte.ch/vocabularies/core/>
@@ -360,8 +370,8 @@ export async function selectAccountBySession(sessionUri: string): Promise<{accou
     sessionId: binding.session_uuid?.value,
     groupId: binding.group_uuid?.value,
     accountId: binding.account_uuid?.value,
-    roles: binding.roles.value.split(",")
-  }
+    roles: binding.roles.value.split(','),
+  };
 }
 
 export async function deleteSession(account: string): Promise<void> {

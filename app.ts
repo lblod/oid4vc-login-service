@@ -63,5 +63,5 @@ setup()
     const sessionsRouter = await getSessionsRouter();
     app.use('/issuer', issuerRouter);
     app.use('/verifier', verifierRouter);
-    app.use('/sessions', sessionsRouter)
+    app.use('/sessions', sessionsRouter);
   });
