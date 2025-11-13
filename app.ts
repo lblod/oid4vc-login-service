@@ -7,6 +7,7 @@ import { SDJwtVCService } from './services/sd-jwt-vc';
 import { VCVerifier } from './services/verifier';
 import { getIssuerRouter } from './routers/issuer';
 import { getVerifierRouter } from './routers/verifier';
+import { getSessionsRouter } from './routers/sessions';
 import { startCleanupCron } from './utils/cleanup-cron';
 import env from './utils/environment';
 import { logger } from './utils/logger';
@@ -59,6 +60,8 @@ setup()
     startCleanupCron({ issuerService: issuer, verifierService: verifier });
     const issuerRouter = await getIssuerRouter(issuer);
     const verifierRouter = await getVerifierRouter(verifier);
+    const sessionsRouter = await getSessionsRouter();
     app.use('/issuer', issuerRouter);
     app.use('/verifier', verifierRouter);
+    app.use('/sessions', sessionsRouter);
   });

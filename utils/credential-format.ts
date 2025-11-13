@@ -254,13 +254,13 @@ export const updateSessionWithCredentialInfo = async (
       PREFIX ext: <http://mu.semte.ch/vocabularies/ext/>
       PREFIX dct: <http://purl.org/dc/terms/>
       PREFIX mu: <http://mu.semte.ch/vocabularies/core/>
-      PREFIX session: <http://mu.semte.ch/vocabularies/ext/session/>
+      PREFIX session: <http://mu.semte.ch/vocabularies/session/>
 
       INSERT DATA {
         GRAPH ${sparqlEscapeUri(env.SESSION_GRAPH)} {
           ${sparqlEscapeUri(session)} mu:uuid ${sparqlEscapeString(uuid())} ;
             session:account ${sparqlEscapeUri(accountUri)} ;
-            ext:sessionGroup ${sparqlEscapeString(group)} ;
+            ext:sessionGroup ${sparqlEscapeUri(group)} ;
             ext:sessionRole ${safeRolesString} ;
             dct:modified ${sparqlEscapeDateTime(new Date())} .
         }
@@ -322,4 +322,63 @@ async function getGroupId(groupUri: string) {
     throw new Error(`No group found for uri ${groupUri}`);
   }
   return result.results.bindings[0].groupId.value;
+}
+
+export async function selectAccountBySession(sessionUri: string): Promise<{
+  account: string;
+  sessionId: string;
+  accountId: string;
+  groupId: string;
+  roles: string[];
+}> {
+  const accountGraphPrefix = env.ACCOUNT_GRAPH_TEMPLATE.replace(
+    '{{groupId}}',
+    '',
+  );
+
+  const result = await querySudo(`
+    PREFIX mu: <http://mu.semte.ch/vocabularies/core/>
+    PREFIX ext: <http://mu.semte.ch/vocabularies/ext/>
+    PREFIX session: <http://mu.semte.ch/vocabularies/session/>
+    
+    SELECT ?session_uuid ?group_uuid ?account ?account_uuid (GROUP_CONCAT(?role; SEPARATOR = ',') as ?roles) WHERE {
+      GRAPH ${sparqlEscapeUri(env.SESSION_GRAPH)} {
+        ${sparqlEscapeUri(sessionUri)}
+          mu:uuid ?session_uuid;
+          session:account ?account ;
+          ext:sessionRole ?role ;
+          ext:sessionGroup ?group .
+      }
+      GRAPH ?groupGraph {
+        ?group mu:uuid ?group_uuid .
+      }
+      BIND(IRI(CONCAT(${sparqlEscapeString(accountGraphPrefix)}, ?group_uuid)) AS ?accountGraph)
+      GRAPH ?accountGraph {
+        ?account mu:uuid ?account_uuid .
+      }
+    } GROUP BY ?session_uuid ?group_uuid ?account ?account_uuid ?accountGraph ?groupGraph
+     LIMIT 1
+  `);
+  if (result.results.bindings.length === 0) {
+    throw new Error(`No account found for session ${sessionUri}`);
+  }
+  const binding = result.results.bindings[0];
+  return {
+    account: binding.account.value,
+    sessionId: binding.session_uuid?.value,
+    groupId: binding.group_uuid?.value,
+    accountId: binding.account_uuid?.value,
+    roles: binding.roles.value.split(','),
+  };
+}
+
+export async function deleteSession(account: string): Promise<void> {
+  return await updateSudo(`
+    PREFIX session: <http://mu.semte.ch/vocabularies/session/>
+    DELETE WHERE {
+      GRAPH ${sparqlEscapeUri(env.SESSION_GRAPH)} {
+        ?session session:account ${sparqlEscapeUri(account)};
+          ?p ?o.
+      }
+    }`);
 }
