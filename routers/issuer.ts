@@ -3,7 +3,6 @@ import env from '../utils/environment';
 import {
   getCredentialDisplay,
   getCredentialMetadataClaims,
-  getOldCredentialClaims,
   getSessionInfoForCredentialOfferToken,
   getVctClaims,
   getVctDisplay,

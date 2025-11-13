@@ -324,9 +324,7 @@ async function getGroupId(groupUri: string) {
   return result.results.bindings[0].groupId.value;
 }
 
-export async function selectAccountBySession(
-  sessionUri: string,
-): Promise<{
+export async function selectAccountBySession(sessionUri: string): Promise<{
   account: string;
   sessionId: string;
   accountId: string;
