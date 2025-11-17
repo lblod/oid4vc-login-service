@@ -26,6 +26,14 @@ app.use('/', function (req, res, next) {
   next();
 });
 
+app.use(function (req, res, next) {
+  logger.info(
+    `Incoming request: ${req.method} ${req.originalUrl}, session: ${req.get('mu-session-id')}`,
+  );
+
+  next();
+});
+
 app.get('/status', function (req, res) {
   res.send({
     service: 'verifiable-credentials-service',
