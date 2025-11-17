@@ -3,7 +3,6 @@ import env from '../utils/environment';
 import {
   getCredentialDisplay,
   getCredentialMetadataClaims,
-  getOldCredentialClaims,
   getSessionInfoForCredentialOfferToken,
   getVctClaims,
   getVctDisplay,
@@ -48,10 +47,14 @@ export async function getIssuerRouter(issuer: VCIssuer) {
       credential_configurations_supported: {
         // this is NOT linked data, which is sad
         [`${env.CREDENTIAL_TYPE}_sd_jwt`]: {
-          format: 'vc+sd-jwt', // latest spec actually says dc+sd-jwt
+          format: 'dc+sd-jwt', // latest spec actually says dc+sd-jwt
           scope: env.CREDENTIAL_TYPE,
           credential_signing_alg_values_supported: ['EdDSA'], // may need to fall back to ES256?
-          cryptographic_binding_methods_supported: ['did:key', 'did:web'], // jwk not supported, we want a did to link to the user
+          cryptographic_binding_methods_supported: [
+            'did:key',
+            'did:web',
+            'jwk',
+          ], // jwk needs to be supported because of eudi wallet
           proof_types_supported: {
             jwt: {
               proof_signing_alg_values_supported: ['ES256'],

@@ -22,6 +22,7 @@ import env from '../utils/environment';
 import { SDJwtVCService } from './sd-jwt-vc';
 import { SessionInfo } from '../utils/credential-format';
 import { logger } from '../utils/logger';
+import { util } from '@cef-ebsi/key-did-resolver';
 
 export class VCIssuer {
   ready = false;
@@ -313,7 +314,11 @@ export class VCIssuer {
       logger.debug(`expected nonce: ${expectedNonce}`);
       throw new Error('invalid_nonce');
     }
-    const did = decodedJwtHeader.kid;
+    let did = decodedJwtHeader.kid;
+    // fall back to jwk and create a did:key from it
+    if (!did || !did.startsWith('did:')) {
+      did = this.buildDidKeyFromJwk(decodedJwtHeader.jwk);
+    }
     if (!did || !did.startsWith('did:')) {
       throw new Error('invalid_proof');
     }
@@ -336,6 +341,14 @@ export class VCIssuer {
     });
 
     return { did, jwk };
+  }
+
+  buildDidKeyFromJwk(jwk): string | null {
+    if (!jwk) {
+      return null;
+    }
+    const did = util.createDid(jwk);
+    return did;
   }
 
   async verifyJwtSignature(decodedJwtHeader, originalJwt: string, didDocument) {
