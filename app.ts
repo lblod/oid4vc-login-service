@@ -23,6 +23,8 @@ app.use(
 app.use('/', function (req, res, next) {
   // mandated by the spec, by default we get application/vnd.api+json in the template
   res.type('application/json');
+  // eudi wallet ignores the set-cookie and closes the connection, so it gets a new session every call
+  res.set('connection', 'keep-alive');
   next();
 });
 
