@@ -90,10 +90,10 @@ export class VCIssuer {
     holderDid: string,
     jwk,
     sessionInfo: SessionInfo,
-    authCode: string,
+    authToken: string,
   ) {
     const res = this.sdJwtService.buildCredential(holderDid, jwk, sessionInfo);
-    await this.updateIssuanceStatusForAuthCode(authCode, 'issued');
+    await this.updateIssuanceStatusForAuthToken(authToken, 'issued');
     return res;
   }
 
@@ -464,8 +464,8 @@ export class VCIssuer {
       }`);
   }
 
-  async updateIssuanceStatusForAuthCode(
-    authCode: string,
+  async updateIssuanceStatusForAuthToken(
+    authToken: string,
     status: 'issued' | 'error',
   ) {
     await updateSudo(`
@@ -487,8 +487,11 @@ export class VCIssuer {
         }
       } WHERE {
         GRAPH ${sparqlEscapeUri(env.WORKING_GRAPH)} {
+          ?token a ext:CredentialOfferToken ;
+            ext:authToken ${sparqlEscapeString(authToken)} ;
+            ext:session ?session .
           ?s a ext:IssuanceStatus ;
-            mu:uuid ${sparqlEscapeUri(authCode)} ;
+            ext:session ?session ;
             ext:status ?status ;
             dct:modified ?modified .
         }
