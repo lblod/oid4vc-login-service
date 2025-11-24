@@ -9,6 +9,8 @@ const environment = {
   AUTHORIZATION_REQUEST_TTL: parseInt(
     process.env.AUTHORIZATION_REQUEST_TTL || '600000',
   ), // 10 minutes
+  BIND_NONCE_TO_SESSION:
+    (process.env.BIND_NONCE_TO_SESSION || 'true') === 'true',
   CARD_BACKGROUND_COLOR: process.env.CARD_BACKGROUND_COLOR || '#12107c',
   CARD_TEXT_COLOR: process.env.CARD_TEXT_COLOR || '#FFFFFF',
   CLEANUP_CRON_PATTERN: process.env.CLEANUP_CRON_PATTERN || '51 * * * *', // Every hour

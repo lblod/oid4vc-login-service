@@ -27,6 +27,7 @@ For the contents of the certificate, see the VCT in [./utils/credential-format.t
 
 - **AUTH_CODE_TTL**: time to live in ms for the auth tokens as defined in oid4vci. Default 60000
 - **AUTHORIZATION_REQUEST_TTL**: time to live in ms for the authorization requests as defined in oid4vci. Default 600000
+- **BIND_NONCE_TO_SESSION**: whether a nonce can only be claimed by the same wallet session as the one created it. Set to false if you want to support wallets that don't support cookies for session management, like the EUDI wallet at the time of this writing. Default true.
 - **CARD_BACKGROUND_COLOR**: background color of the card shown in the wallet. Default '#12107c'
 - **CARD_TEXT_COLOR**: text color of the card shown in the wallet. Default '#FFFFFF'
 - **CLEANUP_CRON_PATTERN**: cron pattern to use for cleaning up expired authorization requests, nonces and tokens. Default '51 \* \* \* \*' (every hour at minute 51)

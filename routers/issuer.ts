@@ -186,12 +186,7 @@ export async function getIssuerRouter(issuer: VCIssuer) {
     logger.debug(`holder did: ${did}`);
     logger.debug(`holder jwk: ${jwk}`);
 
-    const signedVC = await issuer.issueCredential(
-      did,
-      jwk,
-      sessionInfo,
-      walletSession,
-    );
+    const signedVC = await issuer.issueCredential(did, jwk, sessionInfo, token);
 
     const response = {
       c_nonce: await issuer.generateNonce(walletSession), // for old specs
