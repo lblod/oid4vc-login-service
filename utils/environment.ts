@@ -1,3 +1,4 @@
+import { generateKeys } from './generate-keys';
 import { logger } from './logger';
 
 const ISSUER_URL = process.env.ISSUER_URL || 'http://localhost:3000';
@@ -22,8 +23,11 @@ const environment = {
     process.env.CREDENTIAL_URI_BASE || `${ISSUER_URL}/credentials/`,
   ISSUER_DID: process.env.ISSUER_DID,
   ISSUER_KEY_ID: process.env.ISSUER_KEY_ID,
+  ISSUER_ES256_KEY_ID: process.env.ISSUER_ES256_KEY_ID,
   ISSUER_PUBLIC_KEY: process.env.ISSUER_PUBLIC_KEY,
   ISSUER_PRIVATE_KEY: process.env.ISSUER_PRIVATE_KEY,
+  ISSUER_ES256_PUBLIC_KEY: process.env.ISSUER_PUBLIC_KEY,
+  ISSUER_ES256_PRIVATE_KEY: process.env.ISSUER_PRIVATE_KEY,
   ISSUER_NAME: process.env.ISSUER_NAME || `${PROJECT_NAME} OID4VC Issuer`,
   ISSUER_URL,
   LOG_LEVEL: process.env.LOG_LEVEL || 'info',
@@ -38,7 +42,9 @@ const environment = {
     .map((did) => did.trim()), // comma separated list of DIDs
   VERIFIER_DID: process.env.VERIFIER_DID,
   VERIFIER_KEY_ID: process.env.VERIFIER_KEY_ID,
+  VERIFIER_ES256_KEY_ID: process.env.VERIFIER_ES256_KEY_ID,
   VERIFIER_PRIVATE_KEY: process.env.VERIFIER_PRIVATE_KEY,
+  VERIFIER_ES256_PRIVATE_KEY: process.env.VERIFIER_ES256_PRIVATE_KEY,
   VERIFIER_URL,
   USER_GRAPH_TEMPLATE:
     process.env.USER_GRAPH_TEMPLATE ||
@@ -73,8 +79,19 @@ const requiredVars = [
 ];
 for (const varName of requiredVars) {
   if (!environment[varName as keyof typeof environment]) {
-    logger.error(`Error: ${varName} environment variable is not set`);
-    process.exit(1);
+    logger.error(`Error: ${varName} environment variable is not set\n\n`);
+    logger.error(
+      'Maybe you wanted to generate new keys? Generating keys for ISSUER_DID\n\n',
+    );
+    generateKeys(environment.ISSUER_DID)
+      .then((result) => {
+        logger.error(JSON.stringify(result, null, 2));
+        process.exit(1);
+      })
+      .catch((err) => {
+        logger.error(`Key generation failed: ${err}`);
+        process.exit(1);
+      });
   }
 }
 

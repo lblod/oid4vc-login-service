@@ -4,6 +4,7 @@ import { sparqlEscapeDateTime, sparqlEscapeString, sparqlEscapeUri } from 'mu';
 import * as Crypto from 'node:crypto';
 import {
   createEphemeralKeyPair,
+  getPrivateES256KeyAsCryptoKey,
   getPrivateKeyAsCryptoKey,
 } from '../utils/crypto';
 import { SDJwtVCService } from './sd-jwt-vc';
@@ -209,15 +210,27 @@ export class VCVerifier {
       nonce,
       ephemeralKey.privateKey,
     );
+    let key = null;
+    let keyId = null;
+    let alg = null;
+    if (env.VERIFIER_ES256_PRIVATE_KEY) {
+      key = getPrivateES256KeyAsCryptoKey(env.VERIFIER_ES256_PRIVATE_KEY);
+      keyId = env.VERIFIER_ES256_KEY_ID;
+      alg = 'ES256';
+    } else {
+      key = getPrivateKeyAsCryptoKey(env.VERIFIER_PRIVATE_KEY);
+      keyId = env.VERIFIER_KEY_ID;
+      alg = 'EdDSA';
+    }
     // request is jwt signed with our private key
     const request = await new jose.SignJWT(payload)
       .setProtectedHeader({
-        alg: 'EdDSA',
-        kid: env.VERIFIER_KEY_ID,
+        alg: alg,
+        kid: keyId,
         iss: env.VERIFIER_DID,
         typ: 'oauth-authz-req+jwt',
       })
-      .sign(getPrivateKeyAsCryptoKey(env.VERIFIER_PRIVATE_KEY));
+      .sign(key);
 
     await this.updateAuthorizationRequestStatus(originalSession, 'received');
 

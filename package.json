@@ -31,6 +31,7 @@
     "@digitalbazaar/ecdsa-sd-2023-cryptosuite": "^3.4.1",
     "@digitalbazaar/ed25519-signature-2020": "^5.4.0",
     "@digitalbazaar/ed25519-verification-key-2020": "^4.2.0",
+    "@digitalbazaar/x25519-key-agreement-key-2020": "^3.0.1",
     "@digitalbazaar/security-document-loader": "^3.0.1",
     "@digitalbazaar/vc": "^7.2.0",
     "@lblod/mu-auth-sudo": "^0.6.1",
@@ -47,5 +48,4 @@
     "multiformats": "^13.4.1",
     "web-did-resolver": "^2.0.30",
     "winston": "^3.18.3"
-  }
-}
+  }}

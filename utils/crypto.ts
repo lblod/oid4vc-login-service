@@ -95,6 +95,19 @@ function publicKeyDerEncode({ publicKeyBytes }) {
 
 const privateKeyAsCryptoKey: { [key: string]: Crypto.KeyObject | null } = {};
 
+export function getPrivateES256KeyAsCryptoKey(
+  key = env.VERIFIER_ES256_PRIVATE_KEY,
+) {
+  if (privateKeyAsCryptoKey[key]) {
+    return privateKeyAsCryptoKey[key];
+  }
+  const privateKey = Crypto.createPrivateKey({
+    key,
+  });
+  privateKeyAsCryptoKey[key] = privateKey;
+  return privateKey;
+}
+
 export function getPrivateKeyAsCryptoKey(key = env.ISSUER_PRIVATE_KEY) {
   if (privateKeyAsCryptoKey[key]) {
     return privateKeyAsCryptoKey[key];
