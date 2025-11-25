@@ -35,6 +35,8 @@ const environment = {
   NO_DID_PREFIX: process.env.NO_DID_PREFIX === 'true', // because of old spec versions, some wallets break without this
   PROJECT_NAME,
   NONCE_TTL: parseInt(process.env.NONCE_TTL || '600000'), // 10 minutes
+  VERIFIER_RESPONSE_MODE:
+    process.env.VERIFIER_RESPONSE_MODE || 'direct_post.jwt',
   SINGLE_CREDENTIAL_RESPONSE: process.env.SINGLE_CREDENTIAL_RESPONSE === 'true', // because of old spec versions, some wallets break without this
   TOKEN_TTL: parseInt(process.env.TOKEN_TTL || '600000'), // 10 minutes
   TRUSTED_ISSUERS: (process.env.TRUSTED_ISSUERS || process.env.ISSUER_DID)

@@ -183,6 +183,7 @@ export class VCVerifier {
     const payload = {
       response_type: 'vp_token',
       client_id: clientId,
+      // todo should add randomness here according to spec
       response_uri: `${env.VERIFIER_URL}/presentation-response?original-session=${encodeURIComponent(originalSession)}`,
       response_mode: 'direct_post.jwt',
       nonce,
@@ -200,16 +201,25 @@ export class VCVerifier {
         },
         authorization_encrypted_response_alg: 'ECDH-ES',
         authorization_encrypted_response_enc: 'A128GCM',
-      },
+      } as unknown,
     };
-    if (walletNonce) {
-      payload['wallet_nonce'] = walletNonce;
+    if (env.VERIFIER_RESPONSE_MODE === 'direct_post') {
+      payload.response_mode = 'direct_post';
+      payload.client_id = `redirect_uri:${payload.response_uri}`;
+      payload.client_metadata = {
+        client_name: `${env.PROJECT_NAME} VC Verifier`,
+        logo_uri: env.LOGO_URL,
+      };
+    } else {
+      if (walletNonce) {
+        payload['wallet_nonce'] = walletNonce;
+      }
+      await this.storeAuthorizationRequestKey(
+        session,
+        nonce,
+        ephemeralKey.privateKey,
+      );
     }
-    await this.storeAuthorizationRequestKey(
-      session,
-      nonce,
-      ephemeralKey.privateKey,
-    );
     let key = null;
     let keyId = null;
     let alg = null;
