@@ -39,6 +39,7 @@ export async function createDidWebEdDSAAndES256(did) {
   didDocument.didDocument.verificationMethod.push({
     id: `${did}#es256-1`,
     type: 'JsonWebKey2020',
+    controller: did,
     publicKeyJwk: joseKeys.publicJwk,
   });
   didDocument.didDocument.authentication.push(`${did}#es256-1`);
