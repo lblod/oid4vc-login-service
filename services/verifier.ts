@@ -236,10 +236,14 @@ export class VCVerifier {
     }
     let request = null;
     if (env.VERIFIER_UNSIGNED) {
-      request = await new jose.UnsecuredJWT(payload)
-        .setIssuedAt()
-        .setIssuer(env.VERIFIER_DID)
-        .encode();
+      request = await new jose.SignJWT(payload)
+        .setProtectedHeader({
+          alg: 'none',
+          typ: 'oauth-authz-req+jwt',
+        })
+        .sign(key);
+      // can't use jose's unsecuredjwt as it doesn't allow setting typ header atm
+      request = request.split('.').slice(0, 2).join('.') + '.'; // remove signature
     } else {
       // request is jwt signed with our private key
       request = await new jose.SignJWT(payload)
