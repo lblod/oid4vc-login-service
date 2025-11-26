@@ -15,7 +15,7 @@ import {
   updateSessionWithCredentialInfo,
 } from '../utils/credential-format';
 import { logger } from '../utils/logger';
-import * as jwt from 'jsonwebtoken';
+import jwt from 'jsonwebtoken';
 
 export class VCVerifier {
   ready = false;
@@ -238,7 +238,7 @@ export class VCVerifier {
     let request = null;
     if (env.VERIFIER_UNSIGNED) {
       // can't use jose's unsecuredjwt as it doesn't allow setting typ header atm and can't use signJWT as it requires an alg and none isn't an option
-      request = jwt.sign(payload, key, {
+      request = jwt.sign(payload, 'fakekeyunused', {
         algorithm: 'none',
         header: { typ: 'oauth-authz-req+jwt' },
       });
