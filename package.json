@@ -31,9 +31,9 @@
     "@digitalbazaar/ecdsa-sd-2023-cryptosuite": "^3.4.1",
     "@digitalbazaar/ed25519-signature-2020": "^5.4.0",
     "@digitalbazaar/ed25519-verification-key-2020": "^4.2.0",
-    "@digitalbazaar/x25519-key-agreement-key-2020": "^3.0.1",
     "@digitalbazaar/security-document-loader": "^3.0.1",
     "@digitalbazaar/vc": "^7.2.0",
+    "@digitalbazaar/x25519-key-agreement-key-2020": "^3.0.1",
     "@lblod/mu-auth-sudo": "^0.6.1",
     "@sd-jwt/crypto-nodejs": "^0.15.0",
     "@sd-jwt/sd-jwt-vc": "^0.15.1",
@@ -45,7 +45,9 @@
     "jose": "^6.1.0",
     "jsonld": "^8.3.3",
     "jsonld-document-loader": "^2.3.0",
+    "jsonwebtoken": "^9.0.2",
     "multiformats": "^13.4.1",
     "web-did-resolver": "^2.0.30",
     "winston": "^3.18.3"
-  }}
+  }
+}

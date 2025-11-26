@@ -15,6 +15,7 @@ import {
   updateSessionWithCredentialInfo,
 } from '../utils/credential-format';
 import { logger } from '../utils/logger';
+import * as jwt from 'jsonwebtoken';
 
 export class VCVerifier {
   ready = false;
@@ -236,14 +237,11 @@ export class VCVerifier {
     }
     let request = null;
     if (env.VERIFIER_UNSIGNED) {
-      request = await new jose.SignJWT(payload)
-        .setProtectedHeader({
-          alg: 'none',
-          typ: 'oauth-authz-req+jwt',
-        })
-        .sign(key);
-      // can't use jose's unsecuredjwt as it doesn't allow setting typ header atm
-      request = request.split('.').slice(0, 2).join('.') + '.'; // remove signature
+      // can't use jose's unsecuredjwt as it doesn't allow setting typ header atm and can't use signJWT as it requires an alg and none isn't an option
+      request = jwt.sign(payload, key, {
+        algorithm: 'none',
+        header: { typ: 'oauth-authz-req+jwt' },
+      });
     } else {
       // request is jwt signed with our private key
       request = await new jose.SignJWT(payload)
