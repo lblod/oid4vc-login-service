@@ -26,6 +26,10 @@ export class VCVerifier {
   }
 
   async buildAuthorizationRequestUri(session: string) {
+    if (env.VERIFIER_UNSIGNED) {
+      return this.buildUnsignedAuthorizationRequestUri(session);
+    }
+
     const clientId = this.buildClientId(session);
     const requestUri = `${env.VERIFIER_URL}/authorization-request?original-session=${encodeURIComponent(session)}`;
     const authorizationRequestUri = `openid4vp://?request_uri=${encodeURIComponent(requestUri)}&client_id=${encodeURIComponent(clientId)}`;
@@ -34,6 +38,33 @@ export class VCVerifier {
 
     return {
       authorizationRequestUri,
+    };
+  }
+
+  async buildUnsignedAuthorizationRequestUri(session: string) {
+    const clientId = this.buildClientId(session);
+    const payload = await this.buildAuthorizationRequestData(
+      session,
+      session,
+      undefined,
+      undefined,
+    );
+    payload.client_metadata = JSON.stringify(payload.client_metadata);
+    payload.dcql_query = JSON.stringify(payload.dcql_query);
+    payload['state'] = session;
+    payload['client_id'] = clientId;
+
+    const authorizationRequestUri = new URL('openid4vp://');
+    const params = new URLSearchParams(
+      payload as unknown as Record<string, string>,
+    );
+    authorizationRequestUri.search = params.toString();
+
+    await this.removeAllAuthorizationRequestsForSession(session);
+    await this.createPendingAuthorizationRequest(session);
+
+    return {
+      authorizationRequestUri: authorizationRequestUri.toString(),
     };
   }
 
@@ -150,6 +181,53 @@ export class VCVerifier {
     `);
   }
 
+  async buildAndSignAuthorizationRequestData(
+    session: string,
+    originalSession: string,
+    wallet_metadata: string,
+    wallet_nonce: string,
+  ) {
+    const payload = await this.buildAuthorizationRequestData(
+      session,
+      originalSession,
+      wallet_metadata,
+      wallet_nonce,
+    );
+    let key = null;
+    let keyId = null;
+    let alg = null;
+    if (env.VERIFIER_ES256_PRIVATE_KEY) {
+      key = getPrivateES256KeyAsCryptoKey(env.VERIFIER_ES256_PRIVATE_KEY);
+      keyId = env.VERIFIER_ES256_KEY_ID;
+      alg = 'ES256';
+    } else {
+      key = getPrivateKeyAsCryptoKey(env.VERIFIER_PRIVATE_KEY);
+      keyId = env.VERIFIER_KEY_ID;
+      alg = 'EdDSA';
+    }
+    let request = null;
+    if (env.VERIFIER_UNSIGNED) {
+      // can't use jose's unsecuredjwt as it doesn't allow setting typ header atm and can't use signJWT as it requires an alg and none isn't an option
+      request = jwt.sign(payload, 'fakekeyunused', {
+        algorithm: 'none',
+        header: { typ: 'oauth-authz-req+jwt' },
+      });
+    } else {
+      // request is jwt signed with our private key
+      request = await new jose.SignJWT(payload)
+        .setProtectedHeader({
+          alg: alg,
+          kid: keyId,
+          iss: env.VERIFIER_DID,
+          typ: 'oauth-authz-req+jwt',
+        })
+        .sign(key);
+    }
+    await this.updateAuthorizationRequestStatus(originalSession, 'received');
+
+    return request;
+  }
+
   async buildAuthorizationRequestData(
     session: string,
     originalSession: string,
@@ -191,7 +269,7 @@ export class VCVerifier {
       response_uri: `${env.VERIFIER_URL}/presentation-response?original-session=${encodeURIComponent(originalSession)}`,
       response_mode: 'direct_post.jwt',
       nonce,
-      dcql_query: dcqlQuery,
+      dcql_query: dcqlQuery as unknown,
       aud: 'https://self-issued.me/v2',
       iat: Math.floor(Date.now() / 1000),
       exp: Math.floor(Date.now() / 1000) + 600, // 10 minutes
@@ -223,39 +301,7 @@ export class VCVerifier {
         ephemeralKey.privateKey,
       );
     }
-    let key = null;
-    let keyId = null;
-    let alg = null;
-    if (env.VERIFIER_ES256_PRIVATE_KEY) {
-      key = getPrivateES256KeyAsCryptoKey(env.VERIFIER_ES256_PRIVATE_KEY);
-      keyId = env.VERIFIER_ES256_KEY_ID;
-      alg = 'ES256';
-    } else {
-      key = getPrivateKeyAsCryptoKey(env.VERIFIER_PRIVATE_KEY);
-      keyId = env.VERIFIER_KEY_ID;
-      alg = 'EdDSA';
-    }
-    let request = null;
-    if (env.VERIFIER_UNSIGNED) {
-      // can't use jose's unsecuredjwt as it doesn't allow setting typ header atm and can't use signJWT as it requires an alg and none isn't an option
-      request = jwt.sign(payload, 'fakekeyunused', {
-        algorithm: 'none',
-        header: { typ: 'oauth-authz-req+jwt' },
-      });
-    } else {
-      // request is jwt signed with our private key
-      request = await new jose.SignJWT(payload)
-        .setProtectedHeader({
-          alg: alg,
-          kid: keyId,
-          iss: env.VERIFIER_DID,
-          typ: 'oauth-authz-req+jwt',
-        })
-        .sign(key);
-    }
-    await this.updateAuthorizationRequestStatus(originalSession, 'received');
-
-    return request;
+    return payload;
   }
 
   async handlePresentationResponse(
