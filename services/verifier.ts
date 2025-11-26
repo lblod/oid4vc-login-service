@@ -42,7 +42,7 @@ export class VCVerifier {
     if (env.NO_DID_PREFIX) {
       clientId = env.VERIFIER_DID;
     }
-    if (env.VERIFIER_RESPONSE_MODE === 'direct_post') {
+    if (env.VERIFIER_UNSIGNED) {
       clientId = `redirect_uri:${env.VERIFIER_URL}/presentation-response?original-session=${encodeURIComponent(session)}`;
     }
     return clientId;
@@ -206,7 +206,7 @@ export class VCVerifier {
         authorization_encrypted_response_enc: 'A128GCM',
       } as unknown,
     };
-    if (env.VERIFIER_RESPONSE_MODE === 'direct_post') {
+    if (env.VERIFIER_UNSIGNED) {
       payload.response_mode = 'direct_post';
       payload.client_metadata = {
         client_name: `${env.PROJECT_NAME} VC Verifier`,
@@ -234,16 +234,23 @@ export class VCVerifier {
       keyId = env.VERIFIER_KEY_ID;
       alg = 'EdDSA';
     }
-    // request is jwt signed with our private key
-    const request = await new jose.SignJWT(payload)
-      .setProtectedHeader({
-        alg: alg,
-        kid: keyId,
-        iss: env.VERIFIER_DID,
-        typ: 'oauth-authz-req+jwt',
-      })
-      .sign(key);
-
+    let request = null;
+    if (env.VERIFIER_UNSIGNED) {
+      request = await new jose.UnsecuredJWT(payload)
+        .setIssuedAt()
+        .setIssuer(env.VERIFIER_DID)
+        .encode();
+    } else {
+      // request is jwt signed with our private key
+      request = await new jose.SignJWT(payload)
+        .setProtectedHeader({
+          alg: alg,
+          kid: keyId,
+          iss: env.VERIFIER_DID,
+          typ: 'oauth-authz-req+jwt',
+        })
+        .sign(key);
+    }
     await this.updateAuthorizationRequestStatus(originalSession, 'received');
 
     return request;
