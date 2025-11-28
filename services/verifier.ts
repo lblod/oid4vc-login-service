@@ -178,7 +178,7 @@ export class VCVerifier {
     }
     let request = null;
     if (env.VERIFIER_USE_X509) {
-      alg = 'RS256';
+      alg = 'ES256';
       key = getPrivateX509KeyAsCryptoKey();
       request = await new jose.SignJWT(payload)
         .setProtectedHeader({
