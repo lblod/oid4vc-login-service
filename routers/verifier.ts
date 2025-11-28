@@ -27,7 +27,7 @@ export async function getVerifierRouter(verifier) {
     const { wallet_metadata, wallet_nonce } = req.body;
     const session = req.get('mu-session-id') as string;
     const authorizationRequestData =
-      await verifier.buildAuthorizationRequestData(
+      await verifier.buildAndSignAuthorizationRequestData(
         session,
         originalSession,
         wallet_metadata,

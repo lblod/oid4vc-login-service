@@ -28,7 +28,7 @@ export class VCVerifier {
   }
 
   async buildAuthorizationRequestUri(session: string) {
-    const clientId = this.buildClientId(session);
+    const clientId = this.buildClientId();
     const requestUri = `${env.VERIFIER_URL}/authorization-request?original-session=${encodeURIComponent(session)}`;
     const authorizationRequestUri = `openid4vp://?request_uri=${encodeURIComponent(requestUri)}&client_id=${encodeURIComponent(clientId)}`;
     await this.removeAllAuthorizationRequestsForSession(session);
@@ -39,14 +39,14 @@ export class VCVerifier {
     };
   }
 
-  buildClientId(session) {
+  buildClientId() {
     let clientId = `decentralized_identifier:${env.VERIFIER_DID}`;
     // because of old spec versions, some wallets break without this
     if (env.NO_DID_PREFIX) {
       clientId = env.VERIFIER_DID;
     }
     if (env.VERIFIER_USE_X509) {
-      clientId = `x509_hash:${pemToX509Hash()}/presentation-response?original-session=${encodeURIComponent(session)}`;
+      clientId = `x509_hash:${pemToX509Hash()}`;
     }
     return clientId;
   }
@@ -235,7 +235,7 @@ export class VCVerifier {
         },
       ],
     };
-    const clientId = this.buildClientId(originalSession);
+    const clientId = this.buildClientId();
     const nonce = Crypto.randomBytes(16).toString('base64url');
     const ephemeralKey = await createEphemeralKeyPair();
     const payload = {
