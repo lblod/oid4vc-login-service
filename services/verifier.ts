@@ -3,9 +3,12 @@ import * as jose from 'jose';
 import { sparqlEscapeDateTime, sparqlEscapeString, sparqlEscapeUri } from 'mu';
 import * as Crypto from 'node:crypto';
 import {
+  buildX5CFromChain,
   createEphemeralKeyPair,
   getPrivateES256KeyAsCryptoKey,
   getPrivateKeyAsCryptoKey,
+  getPrivateX509KeyAsCryptoKey,
+  pemToX509Hash,
 } from '../utils/crypto';
 import { SDJwtVCService } from './sd-jwt-vc';
 import env from '../utils/environment';
@@ -15,7 +18,6 @@ import {
   updateSessionWithCredentialInfo,
 } from '../utils/credential-format';
 import { logger } from '../utils/logger';
-import jwt from 'jsonwebtoken';
 
 export class VCVerifier {
   ready = false;
@@ -26,10 +28,6 @@ export class VCVerifier {
   }
 
   async buildAuthorizationRequestUri(session: string) {
-    if (env.VERIFIER_UNSIGNED) {
-      return this.buildUnsignedAuthorizationRequestUri(session);
-    }
-
     const clientId = this.buildClientId(session);
     const requestUri = `${env.VERIFIER_URL}/authorization-request?original-session=${encodeURIComponent(session)}`;
     const authorizationRequestUri = `openid4vp://?request_uri=${encodeURIComponent(requestUri)}&client_id=${encodeURIComponent(clientId)}`;
@@ -41,41 +39,14 @@ export class VCVerifier {
     };
   }
 
-  async buildUnsignedAuthorizationRequestUri(session: string) {
-    const clientId = this.buildClientId(session);
-    const payload = await this.buildAuthorizationRequestData(
-      session,
-      session,
-      undefined,
-      undefined,
-    );
-    payload.client_metadata = JSON.stringify(payload.client_metadata);
-    payload.dcql_query = JSON.stringify(payload.dcql_query);
-    payload['state'] = session;
-    payload['client_id'] = clientId;
-
-    const authorizationRequestUri = new URL('openid4vp://');
-    const params = new URLSearchParams(
-      payload as unknown as Record<string, string>,
-    );
-    authorizationRequestUri.search = params.toString();
-
-    await this.removeAllAuthorizationRequestsForSession(session);
-    await this.createPendingAuthorizationRequest(session);
-
-    return {
-      authorizationRequestUri: authorizationRequestUri.toString(),
-    };
-  }
-
   buildClientId(session) {
     let clientId = `decentralized_identifier:${env.VERIFIER_DID}`;
     // because of old spec versions, some wallets break without this
     if (env.NO_DID_PREFIX) {
       clientId = env.VERIFIER_DID;
     }
-    if (env.VERIFIER_UNSIGNED) {
-      clientId = `redirect_uri:${env.VERIFIER_URL}/presentation-response?original-session=${encodeURIComponent(session)}`;
+    if (env.VERIFIER_USE_X509) {
+      clientId = `x509_hash:${pemToX509Hash()}/presentation-response?original-session=${encodeURIComponent(session)}`;
     }
     return clientId;
   }
@@ -206,12 +177,17 @@ export class VCVerifier {
       alg = 'EdDSA';
     }
     let request = null;
-    if (env.VERIFIER_UNSIGNED) {
-      // can't use jose's unsecuredjwt as it doesn't allow setting typ header atm and can't use signJWT as it requires an alg and none isn't an option
-      request = jwt.sign(payload, 'fakekeyunused', {
-        algorithm: 'none',
-        header: { typ: 'oauth-authz-req+jwt' },
-      });
+    if (env.VERIFIER_USE_X509) {
+      alg = 'RS256';
+      key = getPrivateX509KeyAsCryptoKey();
+      request = await new jose.SignJWT(payload)
+        .setProtectedHeader({
+          alg,
+          iss: env.VERIFIER_DID,
+          x5c: buildX5CFromChain(),
+          typ: 'oauth-authz-req+jwt',
+        })
+        .sign(key);
     } else {
       // request is jwt signed with our private key
       request = await new jose.SignJWT(payload)
@@ -285,22 +261,15 @@ export class VCVerifier {
         authorization_encrypted_response_enc: 'A128GCM',
       } as unknown,
     };
-    if (env.VERIFIER_UNSIGNED) {
-      payload.response_mode = 'direct_post';
-      payload.client_metadata = {
-        client_name: `${env.PROJECT_NAME} VC Verifier`,
-        logo_uri: env.LOGO_URL,
-      };
-    } else {
-      if (walletNonce) {
-        payload['wallet_nonce'] = walletNonce;
-      }
-      await this.storeAuthorizationRequestKey(
-        session,
-        nonce,
-        ephemeralKey.privateKey,
-      );
+
+    if (walletNonce) {
+      payload['wallet_nonce'] = walletNonce;
     }
+    await this.storeAuthorizationRequestKey(
+      session,
+      nonce,
+      ephemeralKey.privateKey,
+    );
     return payload;
   }
 

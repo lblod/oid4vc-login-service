@@ -179,3 +179,48 @@ export async function createEphemeralKeyPair() {
 
   return { publicKey, privateKey, jwk };
 }
+
+function pemToBase64Der(pem: string) {
+  return pem
+    .replace('-----BEGIN CERTIFICATE-----', '')
+    .replace('-----END CERTIFICATE-----', '')
+    .replace(/\s+/g, '');
+}
+
+const pemHashCache: { [pem: string]: string } = {};
+export function pemToX509Hash(pem = env.VERIFIER_X509_PUBLIC_KEY) {
+  if (pemHashCache[pem]) {
+    return pemHashCache[pem];
+  }
+  const base64 = pemToBase64Der(pem);
+  const der = Buffer.from(base64, 'base64');
+  const hash = Crypto.createHash('sha256').update(der).digest('base64');
+  const hashBase64Url = hash
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/, '');
+  pemHashCache[pem] = hashBase64Url;
+  return hashBase64Url;
+}
+
+export function buildX5CFromChain(
+  pemChain = env.VERIFIER_X509_CHAIN,
+): string[] {
+  // Split into individual certificates
+  const certs = pemChain
+    .split(/-----END CERTIFICATE-----/)
+    .map((part) => part.trim())
+    .filter((part) => part.length > 0)
+    .map((part) => part + '-----END CERTIFICATE-----');
+
+  // Convert each cert to Base64 DER
+  return certs.map(pemToBase64Der);
+}
+
+export function getPrivateX509KeyAsCryptoKey(
+  key = env.VERIFIER_X509_PRIVATE_KEY,
+) {
+  return Crypto.createPrivateKey({
+    key,
+  });
+}
