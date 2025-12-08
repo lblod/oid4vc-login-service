@@ -257,6 +257,12 @@ export class VCVerifier {
           // no need to have multiple keys for key rotation because we generate a key per client
           keys: [ephemeralKey.jwk],
         },
+        vp_formats_supported: {
+          'dc+sd-jwt': {
+            'sd-jwt_alg_values': ['ES256', 'EdDSA'],
+            'kb-jwt_alg_values': ['ES256', 'EdDSA'],
+          },
+        },
         authorization_encrypted_response_alg: 'ECDH-ES',
         authorization_encrypted_response_enc: 'A128GCM',
       } as unknown,
