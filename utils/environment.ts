@@ -1,5 +1,6 @@
 import { generateKeys } from './generate-keys';
 import { logger } from './logger';
+import fs from 'fs';
 
 const ISSUER_URL = process.env.ISSUER_URL || 'http://localhost:3000';
 const VERIFIER_URL = process.env.VERIFIER_URL || ISSUER_URL;
@@ -45,9 +46,9 @@ const environment = {
   VERIFIER_ES256_KEY_ID: process.env.VERIFIER_ES256_KEY_ID,
   VERIFIER_PRIVATE_KEY: process.env.VERIFIER_PRIVATE_KEY,
   VERIFIER_ES256_PRIVATE_KEY: process.env.VERIFIER_ES256_PRIVATE_KEY,
-  VERIFIER_X509_PRIVATE_KEY: process.env.VERIFIER_X509_PRIVATE_KEY,
-  VERIFIER_X509_PUBLIC_KEY: process.env.VERIFIER_X509_PUBLIC_KEY,
-  VERIFIER_X509_CHAIN: process.env.VERIFIER_X509_CHAIN,
+  VERIFIER_X509_PRIVATE_KEY: '',
+  VERIFIER_X509_PUBLIC_KEY: '',
+  VERIFIER_X509_CHAIN: '',
   VERIFIER_USE_X509: process.env.VERIFIER_USE_X509 === 'true',
   VERIFIER_URL,
   USER_GRAPH_TEMPLATE:
@@ -65,6 +66,25 @@ const environment = {
     process.env.WORKING_GRAPH ||
     'http://mu.semte.ch/graphs/verifiable-credentials/temp',
 };
+
+if (environment.VERIFIER_USE_X509) {
+  const certDir = process.env.VERIFIER_X509_CERTS || '/config/certificates';
+  const fullchainFile = `${certDir}/fullchain.pem`;
+  const keyFile = `${certDir}/key.pem`;
+  const publicKeyFile = `${certDir}/cert.pem`;
+
+  try {
+    environment.VERIFIER_X509_CHAIN = fs.readFileSync(fullchainFile, 'utf8');
+    environment.VERIFIER_X509_PRIVATE_KEY = fs.readFileSync(keyFile, 'utf8');
+    environment.VERIFIER_X509_PUBLIC_KEY = fs.readFileSync(
+      publicKeyFile,
+      'utf8',
+    );
+  } catch (error) {
+    logger.error(`Error reading X.509 certificate files: ${error}`);
+    process.exit(1);
+  }
+}
 
 if (environment.AUTH_CODE_TTL > environment.TOKEN_TTL) {
   logger.error('Error: AUTH_CODE_TTL cannot be greater than TOKEN_TTL');
