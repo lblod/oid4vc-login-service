@@ -26,14 +26,6 @@ app.use('/', function (_req, res, next) {
   next();
 });
 
-app.use(function (req, _res, next) {
-  logger.debug(
-    `Incoming request: ${req.method} ${req.originalUrl}, session: ${req.get('mu-session-id')}`,
-  );
-
-  next();
-});
-
 app.get('/status', function (req, res) {
   res.send({
     service: 'verifiable-credentials-service',

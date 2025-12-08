@@ -235,14 +235,14 @@ export class VCVerifier {
     const clientId = this.buildClientId();
     const nonce = Crypto.randomBytes(16).toString('base64url');
     const ephemeralKey = await createEphemeralKeyPair();
+    const responseCode = Crypto.randomBytes(16).toString('base64url');
     const payload = {
       response_type: 'vp_token',
       client_id: clientId,
-      // todo should add randomness here according to spec
-      response_uri: `${env.VERIFIER_URL}/presentation-response?original-session=${encodeURIComponent(originalSession)}`,
+      response_uri: `${env.VERIFIER_URL}/presentation-response?original-session=${encodeURIComponent(originalSession)}&response_code=${encodeURIComponent(responseCode)}`,
       response_mode: 'direct_post.jwt',
       nonce,
-      dcql_query: dcqlQuery as unknown,
+      dcql_query: dcqlQuery,
       aud: 'https://self-issued.me/v2',
       iat: Math.floor(Date.now() / 1000),
       exp: Math.floor(Date.now() / 1000) + 600, // 10 minutes
@@ -262,7 +262,7 @@ export class VCVerifier {
         },
         authorization_encrypted_response_alg: 'ECDH-ES',
         authorization_encrypted_response_enc: 'A128GCM',
-      } as unknown,
+      },
     };
 
     if (walletNonce) {
@@ -270,19 +270,26 @@ export class VCVerifier {
     }
     await this.storeAuthorizationRequestKey(
       originalSession,
+      responseCode,
       nonce,
       ephemeralKey.privateKey,
     );
     return payload;
   }
 
-  async handlePresentationResponse(originalSession: string, body) {
+  async handlePresentationResponse(
+    originalSession: string,
+    responseCode: string,
+    body,
+  ) {
     const { response } = body;
     if (!response) {
       throw new Error('No response field in presentation response');
     }
-    const { nonce, privateKey } =
-      await this.fetchAuthorizationRequestKey(originalSession);
+    const { nonce, privateKey } = await this.fetchAuthorizationRequestKey(
+      originalSession,
+      responseCode,
+    );
     const { payload, protectedHeader } = await jose.jwtDecrypt(
       response,
       privateKey,
@@ -343,6 +350,7 @@ export class VCVerifier {
 
   async storeAuthorizationRequestKey(
     session: string,
+    responseCode: string,
     nonce: string,
     privateKey: jose.CryptoKey,
   ) {
@@ -362,6 +370,7 @@ export class VCVerifier {
             ext:verifierUrl ${sparqlEscapeString(env.VERIFIER_URL)} ;
             ext:session ${sparqlEscapeUri(session)} ;
             ext:nonce ${sparqlEscapeString(nonce)} ;
+            ext:responseCode ${sparqlEscapeString(responseCode)} ;
             ext:ephemeralPrivateKey ${sparqlEscapeString(JSON.stringify(privateJwk))} ;
             dct:created ${sparqlEscapeDateTime(new Date())} .
         }
@@ -387,7 +396,7 @@ export class VCVerifier {
     `);
   }
 
-  async fetchAuthorizationRequestKey(session: string) {
+  async fetchAuthorizationRequestKey(session: string, responseCode: string) {
     const result = await updateSudo(`
       PREFIX ext: <http://mu.semte.ch/vocabularies/ext/>
       PREFIX dct: <http://purl.org/dc/terms/>
@@ -396,6 +405,7 @@ export class VCVerifier {
           ?authRequest a ext:AuthorizationRequestEphemeralKey ;
             ext:verifierUrl ${sparqlEscapeString(env.VERIFIER_URL)} ;
             ext:session ${sparqlEscapeUri(session)} ;
+            ext:responseCode ${sparqlEscapeString(responseCode)} ;
             ext:nonce ?nonce ;
             dct:created ?created ;
             ext:ephemeralPrivateKey ?privateKey .

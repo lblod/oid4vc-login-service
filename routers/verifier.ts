@@ -43,6 +43,7 @@ export async function getVerifierRouter(verifier) {
 
   router.post('/presentation-response', async function (req, res) {
     const originalSession = req.query['original-session'] as string | undefined;
+    const responseCode = req.query['response_code'] as string | undefined;
     logger.debug(`session: ${req.get('mu-session-id')}`);
     logger.debug(`body: ${JSON.stringify(req.body, null, 2)}`);
 
@@ -53,7 +54,11 @@ export async function getVerifierRouter(verifier) {
       return;
     }
 
-    await verifier.handlePresentationResponse(originalSession, req.body);
+    await verifier.handlePresentationResponse(
+      originalSession,
+      responseCode,
+      req.body,
+    );
 
     res.send({ status: 'ok' });
   });
