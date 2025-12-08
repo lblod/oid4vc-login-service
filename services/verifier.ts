@@ -153,13 +153,11 @@ export class VCVerifier {
   }
 
   async buildAndSignAuthorizationRequestData(
-    session: string,
     originalSession: string,
     wallet_metadata: string,
     wallet_nonce: string,
   ) {
     const payload = await this.buildAuthorizationRequestData(
-      session,
       originalSession,
       wallet_metadata,
       wallet_nonce,
@@ -205,7 +203,6 @@ export class VCVerifier {
   }
 
   async buildAuthorizationRequestData(
-    session: string,
     originalSession: string,
     wallet_metadata: string,
     wallet_nonce: string,
@@ -272,24 +269,20 @@ export class VCVerifier {
       payload['wallet_nonce'] = walletNonce;
     }
     await this.storeAuthorizationRequestKey(
-      session,
+      originalSession,
       nonce,
       ephemeralKey.privateKey,
     );
     return payload;
   }
 
-  async handlePresentationResponse(
-    session: string,
-    originalSession: string,
-    body,
-  ) {
+  async handlePresentationResponse(originalSession: string, body) {
     const { response } = body;
     if (!response) {
       throw new Error('No response field in presentation response');
     }
     const { nonce, privateKey } =
-      await this.fetchAuthorizationRequestKey(session);
+      await this.fetchAuthorizationRequestKey(originalSession);
     const { payload, protectedHeader } = await jose.jwtDecrypt(
       response,
       privateKey,

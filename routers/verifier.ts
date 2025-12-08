@@ -25,10 +25,8 @@ export async function getVerifierRouter(verifier) {
       return;
     }
     const { wallet_metadata, wallet_nonce } = req.body;
-    const session = req.get('mu-session-id') as string;
     const authorizationRequestData =
       await verifier.buildAndSignAuthorizationRequestData(
-        session,
         originalSession,
         wallet_metadata,
         wallet_nonce,
@@ -44,7 +42,6 @@ export async function getVerifierRouter(verifier) {
   router.get('/authorization-request', handleAuthorizationRequest); // older specs use GET
 
   router.post('/presentation-response', async function (req, res) {
-    const currentSession = req.get('mu-session-id') as string;
     const originalSession = req.query['original-session'] as string | undefined;
     logger.debug(`session: ${req.get('mu-session-id')}`);
     logger.debug(`body: ${JSON.stringify(req.body, null, 2)}`);
@@ -56,11 +53,7 @@ export async function getVerifierRouter(verifier) {
       return;
     }
 
-    await verifier.handlePresentationResponse(
-      currentSession,
-      originalSession,
-      req.body,
-    );
+    await verifier.handlePresentationResponse(originalSession, req.body);
 
     res.send({ status: 'ok' });
   });
