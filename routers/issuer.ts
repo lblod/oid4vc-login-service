@@ -74,7 +74,7 @@ export async function getIssuerRouter(issuer: VCIssuer) {
   // should be exposed at issuer_url/.well-known/oauth-authorization-server/issuer_path
   router.get('/authorization_metadata', async function (req, res) {
     const issuerUrl = env.ISSUER_URL;
-    res.send({
+    const result = {
       issuer: issuerUrl,
       scopes_supported: [env.CREDENTIAL_TYPE],
       authorization_endpoint: `${issuerUrl}/authorize`,
@@ -83,7 +83,12 @@ export async function getIssuerRouter(issuer: VCIssuer) {
       grant_types_supported: [
         'urn:ietf:params:oauth:grant-type:pre-authorized_code',
       ],
-    });
+    };
+    if (env.FALSLY_CLAIM_DPOP_SUPPORT) {
+      // the EUDI wallet does not want to continue its flow currently if we don't claim supported dpop algorithms, but we DON'T DO WALLET ATTESTATION
+      result['dpop_signing_alg_values_supported'] = ['ES256'];
+    }
+    res.send(result);
   });
 
   // should be exposed at issuer_url/.well-known/vct/issuer_path

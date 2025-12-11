@@ -36,6 +36,7 @@ You may not have an existing did file or public/private keys. In that case, fill
 - **CREDENTIAL_NAME**: name of the credential as shown in the wallet. Default '<PROJECT_NAME> Roles Credential'
 - **CREDENTIAL_TYPE**: type of the credential. Default '<PROJECT_NAME>Roles'
 - **CREDENTIAL_URI_BASE**: base uri for the credential as stored in the triplestore. Default '<ISSUER_URL>/credentials/'
+- **FALSLY_CLAIM_DPOP_SUPPORT**: enable to support the EUDI wallet (2025-12-11), which does not want to process with issuance without a set of `dpop_signing_alg_values_supported` in our authorization_metadata, even if we set client authentication type to None. We still do not support wallet attestation!
 - **ISSUER_NAME**: human readable name of the issuer. Default '<PROJECT_NAME> OID4VC Issuer'
 - **ISSUER_ES256_KEY_ID**: ES256 key id to use for the issuer as defined in the did:web. Default: none, using EdDSA.
 - **ISSUER_ES256_PUBLIC_KEY**: ES256 public key to use for the issuer, corresponding to the one in the did:web. Default: none, using EdDSA.

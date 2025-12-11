@@ -22,6 +22,7 @@ const environment = {
   CREDENTIAL_TYPE: process.env.CREDENTIAL_TYPE || `${PROJECT_NAME}Roles`,
   CREDENTIAL_URI_BASE:
     process.env.CREDENTIAL_URI_BASE || `${ISSUER_URL}/credentials/`,
+  FALSLY_CLAIM_DPOP_SUPPORT: process.env.FALSLY_CLAIM_DPOP_SUPPORT === 'true',
   ISSUER_DID: process.env.ISSUER_DID,
   ISSUER_KEY_ID: process.env.ISSUER_KEY_ID,
   ISSUER_ES256_KEY_ID: process.env.ISSUER_ES256_KEY_ID,
