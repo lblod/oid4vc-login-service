@@ -21,7 +21,7 @@ app.use(
     },
   }),
 );
-app.use('/', function (req, res, next) {
+app.use('/', function (_req, res, next) {
   // mandated by the spec, by default we get application/vnd.api+json in the template
   res.type('application/json');
   next();

@@ -47,10 +47,14 @@ export async function getIssuerRouter(issuer: VCIssuer) {
       credential_configurations_supported: {
         // this is NOT linked data, which is sad
         [`${env.CREDENTIAL_TYPE}_sd_jwt`]: {
-          format: 'vc+sd-jwt', // latest spec actually says dc+sd-jwt
+          format: 'dc+sd-jwt',
           scope: env.CREDENTIAL_TYPE,
-          credential_signing_alg_values_supported: ['EdDSA'], // may need to fall back to ES256?
-          cryptographic_binding_methods_supported: ['did:key', 'did:web'], // jwk not supported, we want a did to link to the user
+          credential_signing_alg_values_supported: ['EdDSA'],
+          cryptographic_binding_methods_supported: [
+            'did:key',
+            'did:web',
+            'jwk',
+          ], // jwk needs to be supported because of eudi wallet
           proof_types_supported: {
             jwt: {
               proof_signing_alg_values_supported: ['ES256'],
@@ -70,7 +74,7 @@ export async function getIssuerRouter(issuer: VCIssuer) {
   // should be exposed at issuer_url/.well-known/oauth-authorization-server/issuer_path
   router.get('/authorization_metadata', async function (req, res) {
     const issuerUrl = env.ISSUER_URL;
-    res.send({
+    const result = {
       issuer: issuerUrl,
       scopes_supported: [env.CREDENTIAL_TYPE],
       authorization_endpoint: `${issuerUrl}/authorize`,
@@ -79,7 +83,12 @@ export async function getIssuerRouter(issuer: VCIssuer) {
       grant_types_supported: [
         'urn:ietf:params:oauth:grant-type:pre-authorized_code',
       ],
-    });
+    };
+    if (env.FALSLY_CLAIM_DPOP_SUPPORT) {
+      // the EUDI wallet does not want to continue its flow currently if we don't claim supported dpop algorithms, but we DON'T DO WALLET ATTESTATION
+      result['dpop_signing_alg_values_supported'] = ['ES256'];
+    }
+    res.send(result);
   });
 
   // should be exposed at issuer_url/.well-known/vct/issuer_path
@@ -182,12 +191,7 @@ export async function getIssuerRouter(issuer: VCIssuer) {
     logger.debug(`holder did: ${did}`);
     logger.debug(`holder jwk: ${jwk}`);
 
-    const signedVC = await issuer.issueCredential(
-      did,
-      jwk,
-      sessionInfo,
-      walletSession,
-    );
+    const signedVC = await issuer.issueCredential(did, jwk, sessionInfo, token);
 
     const response = {
       c_nonce: await issuer.generateNonce(walletSession), // for old specs

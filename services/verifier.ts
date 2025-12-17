@@ -3,8 +3,12 @@ import * as jose from 'jose';
 import { sparqlEscapeDateTime, sparqlEscapeString, sparqlEscapeUri } from 'mu';
 import * as Crypto from 'node:crypto';
 import {
+  buildX5CFromChain,
   createEphemeralKeyPair,
+  getPrivateES256KeyAsCryptoKey,
   getPrivateKeyAsCryptoKey,
+  getPrivateX509KeyAsCryptoKey,
+  pemToX509Hash,
 } from '../utils/crypto';
 import { SDJwtVCService } from './sd-jwt-vc';
 import env from '../utils/environment';
@@ -40,6 +44,9 @@ export class VCVerifier {
     // because of old spec versions, some wallets break without this
     if (env.NO_DID_PREFIX) {
       clientId = env.VERIFIER_DID;
+    }
+    if (env.VERIFIER_USE_X509) {
+      clientId = `x509_hash:${pemToX509Hash()}`;
     }
     return clientId;
   }
@@ -145,8 +152,57 @@ export class VCVerifier {
     `);
   }
 
+  async buildAndSignAuthorizationRequestData(
+    originalSession: string,
+    wallet_metadata: string,
+    wallet_nonce: string,
+  ) {
+    const payload = await this.buildAuthorizationRequestData(
+      originalSession,
+      wallet_metadata,
+      wallet_nonce,
+    );
+    let key = null;
+    let keyId = null;
+    let alg = null;
+    if (env.VERIFIER_ES256_PRIVATE_KEY) {
+      key = getPrivateES256KeyAsCryptoKey(env.VERIFIER_ES256_PRIVATE_KEY);
+      keyId = env.VERIFIER_ES256_KEY_ID;
+      alg = 'ES256';
+    } else {
+      key = getPrivateKeyAsCryptoKey(env.VERIFIER_PRIVATE_KEY);
+      keyId = env.VERIFIER_KEY_ID;
+      alg = 'EdDSA';
+    }
+    let request = null;
+    if (env.VERIFIER_USE_X509) {
+      alg = 'ES256';
+      key = getPrivateX509KeyAsCryptoKey();
+      request = await new jose.SignJWT(payload)
+        .setProtectedHeader({
+          alg,
+          iss: env.VERIFIER_DID,
+          x5c: buildX5CFromChain(),
+          typ: 'oauth-authz-req+jwt',
+        })
+        .sign(key);
+    } else {
+      // request is jwt signed with our private key
+      request = await new jose.SignJWT(payload)
+        .setProtectedHeader({
+          alg: alg,
+          kid: keyId,
+          iss: env.VERIFIER_DID,
+          typ: 'oauth-authz-req+jwt',
+        })
+        .sign(key);
+    }
+    await this.updateAuthorizationRequestStatus(originalSession, 'received');
+
+    return request;
+  }
+
   async buildAuthorizationRequestData(
-    session: string,
     originalSession: string,
     wallet_metadata: string,
     wallet_nonce: string,
@@ -179,10 +235,11 @@ export class VCVerifier {
     const clientId = this.buildClientId();
     const nonce = Crypto.randomBytes(16).toString('base64url');
     const ephemeralKey = await createEphemeralKeyPair();
+    const responseCode = Crypto.randomBytes(16).toString('base64url');
     const payload = {
       response_type: 'vp_token',
       client_id: clientId,
-      response_uri: `${env.VERIFIER_URL}/presentation-response?original-session=${encodeURIComponent(originalSession)}`,
+      response_uri: `${env.VERIFIER_URL}/presentation-response?original-session=${encodeURIComponent(originalSession)}&response_code=${encodeURIComponent(responseCode)}`,
       response_mode: 'direct_post.jwt',
       nonce,
       dcql_query: dcqlQuery,
@@ -197,44 +254,42 @@ export class VCVerifier {
           // no need to have multiple keys for key rotation because we generate a key per client
           keys: [ephemeralKey.jwk],
         },
+        vp_formats_supported: {
+          'dc+sd-jwt': {
+            'sd-jwt_alg_values': ['ES256', 'EdDSA'],
+            'kb-jwt_alg_values': ['ES256', 'EdDSA'],
+          },
+        },
         authorization_encrypted_response_alg: 'ECDH-ES',
         authorization_encrypted_response_enc: 'A128GCM',
       },
     };
+
     if (walletNonce) {
       payload['wallet_nonce'] = walletNonce;
     }
     await this.storeAuthorizationRequestKey(
-      session,
+      originalSession,
+      responseCode,
       nonce,
       ephemeralKey.privateKey,
     );
-    // request is jwt signed with our private key
-    const request = await new jose.SignJWT(payload)
-      .setProtectedHeader({
-        alg: 'EdDSA',
-        kid: env.VERIFIER_KEY_ID,
-        iss: env.VERIFIER_DID,
-        typ: 'oauth-authz-req+jwt',
-      })
-      .sign(getPrivateKeyAsCryptoKey(env.VERIFIER_PRIVATE_KEY));
-
-    await this.updateAuthorizationRequestStatus(originalSession, 'received');
-
-    return request;
+    return payload;
   }
 
   async handlePresentationResponse(
-    session: string,
     originalSession: string,
+    responseCode: string,
     body,
   ) {
     const { response } = body;
     if (!response) {
       throw new Error('No response field in presentation response');
     }
-    const { nonce, privateKey } =
-      await this.fetchAuthorizationRequestKey(session);
+    const { nonce, privateKey } = await this.fetchAuthorizationRequestKey(
+      originalSession,
+      responseCode,
+    );
     const { payload, protectedHeader } = await jose.jwtDecrypt(
       response,
       privateKey,
@@ -295,6 +350,7 @@ export class VCVerifier {
 
   async storeAuthorizationRequestKey(
     session: string,
+    responseCode: string,
     nonce: string,
     privateKey: jose.CryptoKey,
   ) {
@@ -314,6 +370,7 @@ export class VCVerifier {
             ext:verifierUrl ${sparqlEscapeString(env.VERIFIER_URL)} ;
             ext:session ${sparqlEscapeUri(session)} ;
             ext:nonce ${sparqlEscapeString(nonce)} ;
+            ext:responseCode ${sparqlEscapeString(responseCode)} ;
             ext:ephemeralPrivateKey ${sparqlEscapeString(JSON.stringify(privateJwk))} ;
             dct:created ${sparqlEscapeDateTime(new Date())} .
         }
@@ -339,7 +396,7 @@ export class VCVerifier {
     `);
   }
 
-  async fetchAuthorizationRequestKey(session: string) {
+  async fetchAuthorizationRequestKey(session: string, responseCode: string) {
     const result = await updateSudo(`
       PREFIX ext: <http://mu.semte.ch/vocabularies/ext/>
       PREFIX dct: <http://purl.org/dc/terms/>
@@ -348,6 +405,7 @@ export class VCVerifier {
           ?authRequest a ext:AuthorizationRequestEphemeralKey ;
             ext:verifierUrl ${sparqlEscapeString(env.VERIFIER_URL)} ;
             ext:session ${sparqlEscapeUri(session)} ;
+            ext:responseCode ${sparqlEscapeString(responseCode)} ;
             ext:nonce ?nonce ;
             dct:created ?created ;
             ext:ephemeralPrivateKey ?privateKey .

@@ -22,6 +22,7 @@ import env from '../utils/environment';
 import { SDJwtVCService } from './sd-jwt-vc';
 import { SessionInfo } from '../utils/credential-format';
 import { logger } from '../utils/logger';
+import { util } from '@cef-ebsi/key-did-resolver';
 
 export class VCIssuer {
   ready = false;
@@ -89,10 +90,10 @@ export class VCIssuer {
     holderDid: string,
     jwk,
     sessionInfo: SessionInfo,
-    walletSession: string,
+    authToken: string,
   ) {
     const res = this.sdJwtService.buildCredential(holderDid, jwk, sessionInfo);
-    await this.updateIssuanceStatusForWalletSession(walletSession, 'issued');
+    await this.updateIssuanceStatusForAuthToken(authToken, 'issued');
     return res;
   }
 
@@ -309,11 +310,19 @@ export class VCIssuer {
     const [jwtHeader, jwtPayload] = jwt.split('.');
     const decodedJwtHeader = JSON.parse(atob(jwtHeader));
     const decodedJwtPayload = JSON.parse(atob(jwtPayload));
-    if (decodedJwtPayload.nonce !== expectedNonce) {
+    const validNonce = await this.checkNonce(
+      expectedNonce,
+      decodedJwtPayload.nonce,
+    );
+    if (!validNonce) {
       logger.debug(`expected nonce: ${expectedNonce}`);
       throw new Error('invalid_nonce');
     }
-    const did = decodedJwtHeader.kid;
+    let did = decodedJwtHeader.kid;
+    // fall back to jwk and create a did:key from it
+    if (!did || !did.startsWith('did:')) {
+      did = this.buildDidKeyFromJwk(decodedJwtHeader.jwk);
+    }
     if (!did || !did.startsWith('did:')) {
       throw new Error('invalid_proof');
     }
@@ -338,13 +347,70 @@ export class VCIssuer {
     return { did, jwk };
   }
 
+  async checkNonce(expectedNonce, decodedNonce) {
+    if (!expectedNonce && env.BIND_NONCE_TO_SESSION) {
+      logger.debug(
+        'Did not find an expected nonce for the given session and nonce is bound to session. Returning invalid_nonce status.',
+      );
+      return false;
+    } else if (!expectedNonce) {
+      // check if the nonce is still there, if it is, remove it from the db and return true
+      const result = await querySudo(`
+        PREFIX ext: <http://mu.semte.ch/vocabularies/ext/>
+
+        SELECT ?nonce WHERE {
+          GRAPH ${sparqlEscapeUri(env.WORKING_GRAPH)} {
+            ?s ext:nonce ${sparqlEscapeString(decodedNonce)} ;
+              ext:nonceCreated ?created .
+            FILTER(?created > ${sparqlEscapeDateTime(new Date(Date.now() - env.NONCE_TTL))})
+          }
+        } LIMIT 1`);
+      if (result.results.bindings.length === 0) {
+        logger.debug(
+          'Did not find the provided nonce in the database. Returning invalid_nonce status.',
+        );
+        return false;
+      }
+      // remove the nonce from the db
+      await updateSudo(`
+        PREFIX ext: <http://mu.semte.ch/vocabularies/ext/>
+
+        DELETE {
+          GRAPH ${sparqlEscapeUri(env.WORKING_GRAPH)} {
+            ?s ext:nonce ${sparqlEscapeString(decodedNonce)} ;
+              ext:nonceCreated ?created .
+          }
+        } WHERE {
+          GRAPH ${sparqlEscapeUri(env.WORKING_GRAPH)} {
+            ?s ext:nonce ${sparqlEscapeString(decodedNonce)} ;
+              ext:nonceCreated ?created .
+          }
+        }`);
+      return true;
+    } else {
+      return expectedNonce === decodedNonce;
+    }
+  }
+
+  buildDidKeyFromJwk(jwk): string | null {
+    if (!jwk) {
+      return null;
+    }
+    const did = util.createDid(jwk);
+    return did;
+  }
+
   async verifyJwtSignature(decodedJwtHeader, originalJwt: string, didDocument) {
     if (!didDocument.verificationMethod) {
       throw new Error('No verification method found in DID document');
     }
-    const verificationMethod = didDocument.verificationMethod.find(
+    let verificationMethod = didDocument.verificationMethod.find(
       (vm) => vm.id === decodedJwtHeader.kid,
     );
+    if (!decodedJwtHeader.kid) {
+      // we created the did ourselves based on a jwt, just use the only one available
+      verificationMethod = didDocument.verificationMethod[0];
+    }
     if (!verificationMethod) {
       throw new Error('No matching verification method found in DID document');
     }
@@ -398,13 +464,14 @@ export class VCIssuer {
       }`);
   }
 
-  async updateIssuanceStatusForWalletSession(
-    walletSession: string,
+  async updateIssuanceStatusForAuthToken(
+    authToken: string,
     status: 'issued' | 'error',
   ) {
     await updateSudo(`
       PREFIX ext: <http://mu.semte.ch/vocabularies/ext/>
       PREFIX dct: <http://purl.org/dc/terms/>
+      PREFIX mu: <http://mu.semte.ch/vocabularies/core/>
 
       DELETE {
         GRAPH ${sparqlEscapeUri(env.WORKING_GRAPH)} {
@@ -420,8 +487,11 @@ export class VCIssuer {
         }
       } WHERE {
         GRAPH ${sparqlEscapeUri(env.WORKING_GRAPH)} {
+          ?token a ext:CredentialOfferToken ;
+            ext:authToken ${sparqlEscapeString(authToken)} ;
+            ext:session ?session .
           ?s a ext:IssuanceStatus ;
-            ext:walletSession ${sparqlEscapeUri(walletSession)} ;
+            ext:session ?session ;
             ext:status ?status ;
             dct:modified ?modified .
         }

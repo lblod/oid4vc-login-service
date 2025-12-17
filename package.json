@@ -22,6 +22,7 @@
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "dependencies": {
+    "@cef-ebsi/key-did-resolver": "^2.1.1",
     "@digitalbazaar/data-integrity": "^2.5.0",
     "@digitalbazaar/did-io": "^2.0.0",
     "@digitalbazaar/did-method-jwk": "^2.0.0",
@@ -32,6 +33,7 @@
     "@digitalbazaar/ed25519-verification-key-2020": "^4.2.0",
     "@digitalbazaar/security-document-loader": "^3.0.1",
     "@digitalbazaar/vc": "^7.2.0",
+    "@digitalbazaar/x25519-key-agreement-key-2020": "^3.0.1",
     "@lblod/mu-auth-sudo": "^0.6.1",
     "@sd-jwt/crypto-nodejs": "^0.15.0",
     "@sd-jwt/sd-jwt-vc": "^0.15.1",
