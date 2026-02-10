@@ -91,8 +91,14 @@ export class VCIssuer {
     jwk,
     sessionInfo: SessionInfo,
     authToken: string,
+    walletSupportsDid: boolean,
   ) {
-    const res = this.sdJwtService.buildCredential(holderDid, jwk, sessionInfo);
+    const res = this.sdJwtService.buildCredential(
+      holderDid,
+      jwk,
+      sessionInfo,
+      walletSupportsDid,
+    );
     await this.updateIssuanceStatusForAuthToken(authToken, 'issued');
     return res;
   }
@@ -319,9 +325,11 @@ export class VCIssuer {
       throw new Error('invalid_nonce');
     }
     let did = decodedJwtHeader.kid;
+    let walletSupportsDid = true;
     // fall back to jwk and create a did:key from it
     if (!did || !did.startsWith('did:')) {
       did = this.buildDidKeyFromJwk(decodedJwtHeader.jwk);
+      walletSupportsDid = false;
     }
     if (!did || !did.startsWith('did:')) {
       throw new Error('invalid_proof');
@@ -344,7 +352,7 @@ export class VCIssuer {
       throw new Error('invalid_proof');
     });
 
-    return { did, jwk };
+    return { did, jwk, walletSupportsDid };
   }
 
   async checkNonce(expectedNonce, decodedNonce) {
