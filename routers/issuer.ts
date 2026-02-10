@@ -177,21 +177,27 @@ export async function getIssuerRouter(issuer: VCIssuer) {
       return;
     }
 
-    const { did, jwk } = await issuer
+    const { did, jwk, walletSupportsDid } = await issuer
       .validateProofAndGetHolderDid(jwt, expectedNonce)
       .catch((e) => {
         logger.error(`Error validating proof: ${e}`);
         res.status(400).send({ error: e.message });
-        return { did: null, jwk: null };
+        return { did: null, jwk: null, walletSupportsDid: false };
       });
     if (!did) {
       return; // we already sent a response in the catch block
     }
 
     logger.debug(`holder did: ${did}`);
-    logger.debug(`holder jwk: ${jwk}`);
+    logger.debug(`holder jwk: ${JSON.stringify(jwk)}`);
 
-    const signedVC = await issuer.issueCredential(did, jwk, sessionInfo, token);
+    const signedVC = await issuer.issueCredential(
+      did,
+      jwk,
+      sessionInfo,
+      token,
+      walletSupportsDid,
+    );
 
     const response = {
       c_nonce: await issuer.generateNonce(walletSession), // for old specs

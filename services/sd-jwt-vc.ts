@@ -10,6 +10,7 @@ import * as Crypto from 'node:crypto';
 import {
   getPrivateKeyAsCryptoKey,
   getPublicKeyAsCryptoKey,
+  resolveDid,
 } from '../utils/crypto';
 import env from '../utils/environment';
 import {
@@ -18,6 +19,19 @@ import {
   SessionInfo,
 } from '../utils/credential-format';
 import { logger } from '../utils/logger';
+
+const getHolderJwkFromDid = async (did) => {
+  const resolvedDid = await resolveDid(did);
+  if (!resolvedDid) {
+    throw new Error(`Could not resolve DID: ${did}`);
+  }
+  const publicKey =
+    resolvedDid.didDocument?.verificationMethod?.[0]?.publicKeyJwk;
+  if (!publicKey) {
+    throw new Error(`No public key found for DID: ${did}`);
+  }
+  return publicKey;
+};
 
 const createSignerVerifier = () => {
   const privateKey = getPrivateKeyAsCryptoKey();
@@ -36,7 +50,12 @@ const createSignerVerifier = () => {
     );
   };
   const kbVerifier = async (data: string, sig: string, payload: JwtPayload) => {
-    const holderJwk = payload.cnf?.jwk;
+    let holderJwk = payload.cnf?.jwk;
+    if (!holderJwk) {
+      holderJwk = await getHolderJwkFromDid(
+        (payload.cnf as unknown as { kid: string })?.kid,
+      );
+    }
     const holderPublicKey = await Crypto.subtle.importKey(
       'jwk',
       holderJwk as JsonWebKey,
@@ -86,7 +105,12 @@ export class SDJwtVCService {
     this.ready = true;
   }
 
-  async buildCredential(ownerDid: string, jwk, sessionInfo: SessionInfo) {
+  async buildCredential(
+    ownerDid: string,
+    jwk,
+    sessionInfo: SessionInfo,
+    walletSupportsDid: boolean,
+  ) {
     // Issuer Define the claims object with the user's information
     const claims = {
       did: ownerDid,
@@ -98,6 +122,15 @@ export class SDJwtVCService {
       _sd: getDisclosureFrame(),
     };
 
+    let cnf: { kid?: string; jwk?: string } = {
+      kid: ownerDid,
+    };
+    if (!walletSupportsDid) {
+      cnf = {
+        jwk: jwk,
+      };
+    }
+
     // Issue a signed JWT credential with the specified claims and disclosures
     // Return a Encoded SD JWT. Issuer send the credential to the holder
     const credential = await this.sdjwt.issue(
@@ -105,9 +138,7 @@ export class SDJwtVCService {
         iss: env.ISSUER_DID,
         iat: Math.floor(Date.now() / 1000),
         vct: env.ISSUER_URL,
-        cnf: {
-          jwk,
-        },
+        cnf,
         ...claims,
       },
       disclosureFrame,
