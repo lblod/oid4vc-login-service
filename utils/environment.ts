@@ -20,6 +20,9 @@ const environment = {
     process.env.CREDENTIAL_NAME || `${PROJECT_NAME} Roles Credential`,
 
   CREDENTIAL_TYPE: process.env.CREDENTIAL_TYPE || `${PROJECT_NAME}Roles`,
+  CREDENTIAL_TTL: process.env.CREDENTIAL_TTL
+    ? parseInt(process.env.CREDENTIAL_TTL)
+    : null,
   CREDENTIAL_URI_BASE:
     process.env.CREDENTIAL_URI_BASE || `${ISSUER_URL}/credentials/`,
   FALSLY_CLAIM_DPOP_SUPPORT: process.env.FALSLY_CLAIM_DPOP_SUPPORT === 'true',

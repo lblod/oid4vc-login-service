@@ -35,6 +35,7 @@ You may not have an existing did file or public/private keys. In that case, fill
 - **CLEANUP_CRON_PATTERN**: cron pattern to use for cleaning up expired authorization requests, nonces and tokens. Default '51 \* \* \* \*' (every hour at minute 51)
 - **CREDENTIAL_NAME**: name of the credential as shown in the wallet. Default '<PROJECT_NAME> Roles Credential'
 - **CREDENTIAL_TYPE**: type of the credential. Default '<PROJECT_NAME>Roles'
+- **CREDENTIAL_TTL**: time to live for the credential in seconds. Default: null.
 - **CREDENTIAL_URI_BASE**: base uri for the credential as stored in the triplestore. Default '<ISSUER_URL>/credentials/'
 - **FALSLY_CLAIM_DPOP_SUPPORT**: enable to support the EUDI wallet (2025-12-11), which does not want to process with issuance without a set of `dpop_signing_alg_values_supported` in our authorization_metadata, even if we set client authentication type to None. We still do not support wallet attestation!
 - **ISSUER_NAME**: human readable name of the issuer. Default '<PROJECT_NAME> OID4VC Issuer'

@@ -131,23 +131,24 @@ export class SDJwtVCService {
       };
     }
 
+    const credentialData = {
+      iss: env.ISSUER_DID,
+      iat: Math.floor(Date.now() / 1000),
+      vct: env.ISSUER_URL,
+      cnf,
+      ...claims,
+    };
+    if (env.CREDENTIAL_TTL) {
+      credentialData['exp'] =
+        Math.floor(Date.now() / 1000) + env.CREDENTIAL_TTL;
+    }
     // Issue a signed JWT credential with the specified claims and disclosures
     // Return a Encoded SD JWT. Issuer send the credential to the holder
-    const credential = await this.sdjwt.issue(
-      {
-        iss: env.ISSUER_DID,
-        iat: Math.floor(Date.now() / 1000),
-        vct: env.ISSUER_URL,
-        cnf,
-        ...claims,
+    const credential = await this.sdjwt.issue(credentialData, disclosureFrame, {
+      header: {
+        kid: env.ISSUER_KEY_ID as string,
       },
-      disclosureFrame,
-      {
-        header: {
-          kid: env.ISSUER_KEY_ID as string,
-        },
-      },
-    );
+    });
     logger.debug(`encodedJwt: ${credential}`);
 
     // Holder Receive the credential from the issuer and validate it
