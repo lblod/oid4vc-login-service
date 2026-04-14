@@ -61,3 +61,5 @@ You may not have an existing did file or public/private keys. In that case, fill
 - **WORKING_GRAPH**: the uri of the temporary graph to put data related to the issuance and verification of verifiable credentials. This data is always short-lived, you should be able to delete this graph at any time. Default 'http://mu.semte.ch/graphs/verifiable-credentials/temp'
 
 Note: ES256 is untested, all wallets tested so far.
+
+We documented our implementation decisions in [./implementation-decisions.md](./implementation-decisions.md)
