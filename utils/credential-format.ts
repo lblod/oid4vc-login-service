@@ -66,7 +66,7 @@ export const getCredentialDisplay = () => {
 export const getVctDisplay = () => {
   return [
     {
-      lang: 'en',
+      locale: 'en',
       name: env.CREDENTIAL_NAME,
       description: `A credential that holds your access rights in ${env.PROJECT_NAME}`,
       rendering: {
@@ -87,11 +87,13 @@ export const getVctDisplay = () => {
 export const getVctClaims = () => {
   return certificateProperties.map((prop) => {
     return {
-      path: prop.field,
-      display: {
-        name: prop.label,
-        locale: 'en-US',
-      },
+      path: [prop.field],
+      display: [
+        {
+          label: prop.label,
+          locale: 'en-US',
+        },
+      ],
       sd: 'allowed',
     };
   });
