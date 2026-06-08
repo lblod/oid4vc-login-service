@@ -318,10 +318,6 @@ export class VCVerifier {
       .validateAndDecodeCredential(safeCredential, nonce)
       .then(async (res) => {
         const payload = res.payload;
-        await updateSessionWithCredentialInfo(
-          originalSession,
-          payload as SessionInfo,
-        );
 
         if (!(await this.isTrustedIssuer(res))) {
           throw new Error('Credential issuer is not trusted');
@@ -329,6 +325,12 @@ export class VCVerifier {
         logger.debug(
           `Credential verified successfully: ${JSON.stringify(res, null, 2)}`,
         );
+
+        await updateSessionWithCredentialInfo(
+          originalSession,
+          payload as SessionInfo,
+        );
+
         await this.updateAuthorizationRequestStatus(
           originalSession,
           'accepted',
