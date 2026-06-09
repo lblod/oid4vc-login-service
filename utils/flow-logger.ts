@@ -10,7 +10,12 @@ import env from './environment';
 
 const EVENT_URI_BASE = 'http://data.lblod.info/flow-event/';
 
-type FlowEventType = 'ext:IssuanceFlowEvent' | 'ext:VerificationFlowEvent';
+const ISSUANCE_FLOW_EVENT = 'ext:VCIssuanceFlowEvent' as const;
+const VERIFICATION_FLOW_EVENT = 'ext:VCVerificationFlowEvent' as const;
+
+type FlowEventType =
+  | typeof ISSUANCE_FLOW_EVENT
+  | typeof VERIFICATION_FLOW_EVENT;
 
 async function insertFlowEvent(
   rdfType: FlowEventType,
@@ -51,7 +56,7 @@ async function insertFlowEvent(
 }
 
 export function logIssuanceStarted(sessionUri: string): Promise<void> {
-  return insertFlowEvent('ext:IssuanceFlowEvent', 'started', sessionUri);
+  return insertFlowEvent(ISSUANCE_FLOW_EVENT, 'started', sessionUri);
 }
 
 export function logIssuanceSucceeded(
@@ -59,7 +64,7 @@ export function logIssuanceSucceeded(
   sessionInfo: SessionInfo,
 ): Promise<void> {
   return insertFlowEvent(
-    'ext:IssuanceFlowEvent',
+    ISSUANCE_FLOW_EVENT,
     'credential-issued',
     sessionUri,
     sessionInfo,
@@ -71,7 +76,7 @@ export function logIssuanceFailed(
   errorMessage: string,
 ): Promise<void> {
   return insertFlowEvent(
-    'ext:IssuanceFlowEvent',
+    ISSUANCE_FLOW_EVENT,
     'failed',
     sessionUri,
     undefined,
@@ -80,7 +85,7 @@ export function logIssuanceFailed(
 }
 
 export function logVerificationStarted(sessionUri: string): Promise<void> {
-  return insertFlowEvent('ext:VerificationFlowEvent', 'started', sessionUri);
+  return insertFlowEvent(VERIFICATION_FLOW_EVENT, 'started', sessionUri);
 }
 
 export function logVerificationSucceeded(
@@ -88,7 +93,7 @@ export function logVerificationSucceeded(
   sessionInfo: SessionInfo,
 ): Promise<void> {
   return insertFlowEvent(
-    'ext:VerificationFlowEvent',
+    VERIFICATION_FLOW_EVENT,
     'accepted',
     sessionUri,
     sessionInfo,
@@ -100,7 +105,7 @@ export function logVerificationFailed(
   errorMessage: string,
 ): Promise<void> {
   return insertFlowEvent(
-    'ext:VerificationFlowEvent',
+    VERIFICATION_FLOW_EVENT,
     'failed',
     sessionUri,
     undefined,
