@@ -10,6 +10,7 @@ import {
 } from '../utils/credential-format';
 import { VCIssuer } from '../services/issuer';
 import { logger } from '../utils/logger';
+import { logIssuanceStarted, logIssuanceSucceeded } from '../utils/flow-logger';
 
 export async function getIssuerRouter(issuer: VCIssuer) {
   const router = Router();
@@ -162,6 +163,9 @@ export async function getIssuerRouter(issuer: VCIssuer) {
       res.status(401).send({ error: 'invalid_token' });
       return;
     }
+
+    await logIssuanceStarted(sessionInfo.sessionUri!);
+
     // we don't actually have multiple credential types yet, so even if the wallet sends this, we can ignore it
     // if (credential_configuration_id !== env.CREDENTIAL_TYPE) {
     //   res.status(400).send({ error: 'invalid_credential_configuration_id' });
@@ -211,6 +215,8 @@ export async function getIssuerRouter(issuer: VCIssuer) {
     } else {
       response['credentials'] = [{ credential: signedVC }];
     }
+
+    await logIssuanceSucceeded(sessionInfo.sessionUri!, sessionInfo);
 
     res.send(response);
   });

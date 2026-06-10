@@ -17,6 +17,10 @@ import {
   SessionInfo,
   updateSessionWithCredentialInfo,
 } from '../utils/credential-format';
+import {
+  logVerificationStarted,
+  logVerificationSucceeded,
+} from '../utils/flow-logger';
 import { logger } from '../utils/logger';
 
 export class VCVerifier {
@@ -286,10 +290,14 @@ export class VCVerifier {
     if (!response) {
       throw new Error('No response field in presentation response');
     }
+
+    await logVerificationStarted(originalSession);
+
     const { nonce, privateKey } = await this.fetchAuthorizationRequestKey(
       originalSession,
       responseCode,
     );
+
     const { payload, protectedHeader } = await jose.jwtDecrypt(
       response,
       privateKey,
@@ -346,6 +354,11 @@ export class VCVerifier {
         );
         throw new Error('Could not verify the credential');
       });
+
+    await logVerificationSucceeded(
+      originalSession,
+      verified.payload as SessionInfo,
+    );
 
     return verified;
   }

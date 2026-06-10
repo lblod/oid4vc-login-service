@@ -147,6 +147,7 @@ export type SessionInfo = {
   lastName?: string;
   group: string;
   roles: string;
+  sessionUri?: string;
 };
 
 export const getSessionInfoForCredentialOfferToken = async (token: string) => {
@@ -156,7 +157,7 @@ export const getSessionInfoForCredentialOfferToken = async (token: string) => {
       PREFIX dct: <http://purl.org/dc/terms/>
       PREFIX foaf: <http://xmlns.com/foaf/0.1/>
 
-      SELECT ?accountUri ?accountId ?userUri ?userId ?firstName ?lastName ?group ?role {
+      SELECT ?session ?accountUri ?accountId ?userUri ?userId ?firstName ?lastName ?group ?role {
         GRAPH ${sparqlEscapeUri(env.WORKING_GRAPH)} {
           ?token a ext:CredentialOfferToken .
           ?token ext:issuerUrl ${sparqlEscapeString(env.ISSUER_URL)} .
@@ -185,6 +186,7 @@ export const getSessionInfoForCredentialOfferToken = async (token: string) => {
   const certificateInfo = {};
 
   const firstResult = result.results.bindings[0];
+  certificateInfo['sessionUri'] = firstResult.session.value;
   certificateInfo['accountUri'] = firstResult.accountUri.value;
   if (firstResult.accountId) {
     certificateInfo['accountId'] = firstResult.accountId.value;
