@@ -20,7 +20,8 @@ async function insertFlowEvent(
   sessionInfo?: SessionInfo,
   errorMessage?: string,
 ): Promise<void> {
-  const uri = `${EVENT_URI_BASE}${crypto.randomUUID()}`;
+  const id = crypto.randomUUID();
+  const uri = `${EVENT_URI_BASE}${id}`;
 
   const extraTriples: string[] = [];
   if (sessionInfo) {
@@ -39,9 +40,11 @@ async function insertFlowEvent(
   await updateSudo(`
     PREFIX ext: <http://mu.semte.ch/vocabularies/ext/>
     PREFIX dct: <http://purl.org/dc/terms/>
+    PREFIX mu: <http://mu.semte.ch/vocabularies/core/>
     INSERT DATA {
       GRAPH ${sparqlEscapeUri(env.LOG_GRAPH)} {
         ${sparqlEscapeUri(uri)} a ${rdfType} ;
+          mu:uuid ${sparqlEscapeString(id)} ;
           ext:session ${sparqlEscapeUri(sessionUri)} ;
           ext:eventType ${sparqlEscapeString(eventType)} ;
           dct:created ${sparqlEscapeDateTime(new Date())} .
