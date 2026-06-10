@@ -8,24 +8,25 @@ import {
 import type { SessionInfo } from './credential-format';
 import env from './environment';
 
-const EVENT_URI_BASE = 'http://data.lblod.info/flow-event/';
+const FLOW_EVENT_URI_BASE = 'http://data.lblod.info/flow-event/';
 
-const ISSUANCE_FLOW_EVENT = 'ext:VCIssuanceFlowEvent' as const;
-const VERIFICATION_FLOW_EVENT = 'ext:VCVerificationFlowEvent' as const;
+const CREDENTIAL_ISSUANCE_EVENT = 'ext:CredentialIssuanceEvent' as const;
+const CREDENTIAL_VERIFICATION_EVENT =
+  'ext:CredentialVerificationEvent' as const;
 
-type FlowEventType =
-  | typeof ISSUANCE_FLOW_EVENT
-  | typeof VERIFICATION_FLOW_EVENT;
+type CredentialFlowEventType =
+  | typeof CREDENTIAL_ISSUANCE_EVENT
+  | typeof CREDENTIAL_VERIFICATION_EVENT;
 
-async function insertFlowEvent(
-  rdfType: FlowEventType,
+async function storeCredentialFlowEvent(
+  rdfType: CredentialFlowEventType,
   eventType: string,
   sessionUri: string,
   sessionInfo?: SessionInfo,
   errorMessage?: string,
 ): Promise<void> {
   const id = uuid();
-  const uri = `${EVENT_URI_BASE}${id}`;
+  const uri = `${FLOW_EVENT_URI_BASE}${id}`;
 
   const extraTriples: string[] = [];
   if (sessionInfo) {
@@ -58,58 +59,70 @@ async function insertFlowEvent(
   `);
 }
 
-export function logIssuanceStarted(sessionUri: string): Promise<void> {
-  return insertFlowEvent(ISSUANCE_FLOW_EVENT, 'started', sessionUri);
+export function storeCredentialIssuanceStartedEvent(
+  sessionUri: string,
+): Promise<void> {
+  return storeCredentialFlowEvent(
+    CREDENTIAL_ISSUANCE_EVENT,
+    'issuance-started',
+    sessionUri,
+  );
 }
 
-export function logIssuanceSucceeded(
+export function storeCredentialIssuanceSucceededEvent(
   sessionUri: string,
   sessionInfo: SessionInfo,
 ): Promise<void> {
-  return insertFlowEvent(
-    ISSUANCE_FLOW_EVENT,
-    'credential-issued',
+  return storeCredentialFlowEvent(
+    CREDENTIAL_ISSUANCE_EVENT,
+    'issuance-succeeded',
     sessionUri,
     sessionInfo,
   );
 }
 
-export function logIssuanceFailed(
+export function storeCredentialIssuanceFailedEvent(
   sessionUri: string,
   errorMessage: string,
 ): Promise<void> {
-  return insertFlowEvent(
-    ISSUANCE_FLOW_EVENT,
-    'failed',
+  return storeCredentialFlowEvent(
+    CREDENTIAL_ISSUANCE_EVENT,
+    'issuance-failed',
     sessionUri,
     undefined,
     errorMessage,
   );
 }
 
-export function logVerificationStarted(sessionUri: string): Promise<void> {
-  return insertFlowEvent(VERIFICATION_FLOW_EVENT, 'started', sessionUri);
+export function storeCredentialVerificationStartedEvent(
+  sessionUri: string,
+): Promise<void> {
+  return storeCredentialFlowEvent(
+    CREDENTIAL_VERIFICATION_EVENT,
+    'verification-started',
+    sessionUri,
+  );
 }
 
-export function logVerificationSucceeded(
+export function storeCredentialVerificationSucceededEvent(
   sessionUri: string,
   sessionInfo: SessionInfo,
 ): Promise<void> {
-  return insertFlowEvent(
-    VERIFICATION_FLOW_EVENT,
-    'accepted',
+  return storeCredentialFlowEvent(
+    CREDENTIAL_VERIFICATION_EVENT,
+    'verification-succeeded',
     sessionUri,
     sessionInfo,
   );
 }
 
-export function logVerificationFailed(
+export function storeCredentialVerificationFailedEvent(
   sessionUri: string,
   errorMessage: string,
 ): Promise<void> {
-  return insertFlowEvent(
-    VERIFICATION_FLOW_EVENT,
-    'failed',
+  return storeCredentialFlowEvent(
+    CREDENTIAL_VERIFICATION_EVENT,
+    'verification-failed',
     sessionUri,
     undefined,
     errorMessage,

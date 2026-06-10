@@ -11,10 +11,10 @@ import {
 import { VCIssuer } from '../services/issuer';
 import { logger } from '../utils/logger';
 import {
-  logIssuanceFailed,
-  logIssuanceStarted,
-  logIssuanceSucceeded,
-} from '../utils/flow-logger';
+  storeCredentialIssuanceFailedEvent,
+  storeCredentialIssuanceStartedEvent,
+  storeCredentialIssuanceSucceededEvent,
+} from '../utils/flow-event-store';
 
 export async function getIssuerRouter(issuer: VCIssuer) {
   const router = Router();
@@ -168,7 +168,7 @@ export async function getIssuerRouter(issuer: VCIssuer) {
       return;
     }
 
-    await logIssuanceStarted(sessionInfo.sessionUri!);
+    await storeCredentialIssuanceStartedEvent(sessionInfo.sessionUri!);
 
     // we don't actually have multiple credential types yet, so even if the wallet sends this, we can ignore it
     // if (credential_configuration_id !== env.CREDENTIAL_TYPE) {
@@ -178,7 +178,10 @@ export async function getIssuerRouter(issuer: VCIssuer) {
     if (!jwt) {
       const message = 'missing_proof';
       logger.error(message);
-      await logIssuanceFailed(sessionInfo.sessionUri!, message);
+      await storeCredentialIssuanceFailedEvent(
+        sessionInfo.sessionUri!,
+        message,
+      );
       res.status(400).send({ error: message });
       return;
     }
@@ -186,7 +189,10 @@ export async function getIssuerRouter(issuer: VCIssuer) {
     if (!payload) {
       const message = 'invalid_proof';
       logger.error(message);
-      await logIssuanceFailed(sessionInfo.sessionUri!, message);
+      await storeCredentialIssuanceFailedEvent(
+        sessionInfo.sessionUri!,
+        message,
+      );
       res.status(400).send({ error: message });
       return;
     }
@@ -197,7 +203,10 @@ export async function getIssuerRouter(issuer: VCIssuer) {
         const errorMessage = e instanceof Error ? e.message : String(e);
         const message = `Error validating proof: ${errorMessage}`;
         logger.error(message);
-        await logIssuanceFailed(sessionInfo.sessionUri!, message);
+        await storeCredentialIssuanceFailedEvent(
+          sessionInfo.sessionUri!,
+          message,
+        );
         res.status(400).send({ error: errorMessage });
         return { did: null, jwk: null, walletSupportsDid: false };
       });
@@ -215,7 +224,10 @@ export async function getIssuerRouter(issuer: VCIssuer) {
         const errorMessage = e instanceof Error ? e.message : String(e);
         const message = `Error issuing credential: ${errorMessage}`;
         logger.error(message);
-        await logIssuanceFailed(sessionInfo.sessionUri!, message);
+        await storeCredentialIssuanceFailedEvent(
+          sessionInfo.sessionUri!,
+          message,
+        );
         res.status(400).send({ error: errorMessage });
         return null;
       });
@@ -230,7 +242,10 @@ export async function getIssuerRouter(issuer: VCIssuer) {
         const errorMessage = e instanceof Error ? e.message : String(e);
         const message = `Error generating issuance nonce: ${errorMessage}`;
         logger.error(message);
-        await logIssuanceFailed(sessionInfo.sessionUri!, message);
+        await storeCredentialIssuanceFailedEvent(
+          sessionInfo.sessionUri!,
+          message,
+        );
         res.status(500).send({ error: errorMessage });
         return null;
       });
@@ -252,7 +267,10 @@ export async function getIssuerRouter(issuer: VCIssuer) {
       response['credentials'] = [{ credential: signedVC }];
     }
 
-    await logIssuanceSucceeded(sessionInfo.sessionUri!, sessionInfo);
+    await storeCredentialIssuanceSucceededEvent(
+      sessionInfo.sessionUri!,
+      sessionInfo,
+    );
 
     res.send(response);
   });

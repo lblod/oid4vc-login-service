@@ -18,10 +18,10 @@ import {
   updateSessionWithCredentialInfo,
 } from '../utils/credential-format';
 import {
-  logVerificationFailed,
-  logVerificationStarted,
-  logVerificationSucceeded,
-} from '../utils/flow-logger';
+  storeCredentialVerificationFailedEvent,
+  storeCredentialVerificationStartedEvent,
+  storeCredentialVerificationSucceededEvent,
+} from '../utils/flow-event-store';
 import { logger } from '../utils/logger';
 
 export class VCVerifier {
@@ -292,7 +292,7 @@ export class VCVerifier {
       throw new Error('No response field in presentation response');
     }
 
-    await logVerificationStarted(originalSession);
+    await storeCredentialVerificationStartedEvent(originalSession);
 
     const { nonce, privateKey } = await this.fetchAuthorizationRequestKey(
       originalSession,
@@ -313,7 +313,7 @@ export class VCVerifier {
           originalSession,
           'rejected',
         );
-        await logVerificationFailed(originalSession, message);
+        await storeCredentialVerificationFailedEvent(originalSession, message);
         throw e;
       });
 
@@ -322,7 +322,7 @@ export class VCVerifier {
       const message = 'No roles_credential in vp_token';
       logger.error(message);
       await this.updateAuthorizationRequestStatus(originalSession, 'rejected');
-      await logVerificationFailed(originalSession, message);
+      await storeCredentialVerificationFailedEvent(originalSession, message);
       throw new Error(message);
     }
     const credential = vp_token.roles_credential;
@@ -347,7 +347,7 @@ export class VCVerifier {
           originalSession,
           'rejected',
         );
-        await logVerificationFailed(originalSession, message);
+        await storeCredentialVerificationFailedEvent(originalSession, message);
         throw new Error(responseMessage);
       });
 
@@ -355,7 +355,7 @@ export class VCVerifier {
       const message = 'Credential issuer is not trusted';
       logger.error(message);
       await this.updateAuthorizationRequestStatus(originalSession, 'rejected');
-      await logVerificationFailed(originalSession, message);
+      await storeCredentialVerificationFailedEvent(originalSession, message);
       throw new Error(message);
     }
     logger.debug(
@@ -370,13 +370,13 @@ export class VCVerifier {
       const message = `Error updating session with credential info: ${errorMessage}`;
       logger.error(message);
       await this.updateAuthorizationRequestStatus(originalSession, 'rejected');
-      await logVerificationFailed(originalSession, message);
+      await storeCredentialVerificationFailedEvent(originalSession, message);
       throw e;
     });
 
     await this.updateAuthorizationRequestStatus(originalSession, 'accepted');
 
-    await logVerificationSucceeded(
+    await storeCredentialVerificationSucceededEvent(
       originalSession,
       verified.payload as SessionInfo,
     );
