@@ -18,6 +18,7 @@ import {
   updateSessionWithCredentialInfo,
 } from '../utils/credential-format';
 import {
+  logVerificationFailed,
   logVerificationStarted,
   logVerificationSucceeded,
 } from '../utils/flow-logger';
@@ -298,17 +299,30 @@ export class VCVerifier {
       responseCode,
     );
 
-    const { payload, protectedHeader } = await jose.jwtDecrypt(
-      response,
-      privateKey,
-      {
+    const { payload, protectedHeader } = await jose
+      .jwtDecrypt(response, privateKey, {
         contentEncryptionAlgorithms: ['A128GCM'],
         keyManagementAlgorithms: ['ECDH-ES'],
         // we could verify the audience here if we wanted to be sure it's meant for us
-      },
-    );
+      })
+      .catch(async (e) => {
+        const message = e instanceof Error ? e.message : String(e);
+        logger.error(`Error decrypting presentation response: ${message}`);
+        await this.updateAuthorizationRequestStatus(
+          originalSession,
+          'rejected',
+        );
+        await logVerificationFailed(originalSession, message);
+        throw e;
+      });
+
     const vp_token = payload.vp_token as { roles_credential?: string };
     if (!vp_token?.roles_credential) {
+      await this.updateAuthorizationRequestStatus(originalSession, 'rejected');
+      await logVerificationFailed(
+        originalSession,
+        'No roles_credential in vp_token',
+      );
       throw new Error('No roles_credential in vp_token');
     }
     const credential = vp_token.roles_credential;
@@ -324,36 +338,41 @@ export class VCVerifier {
 
     const verified = await this.sdJwtService
       .validateAndDecodeCredential(safeCredential, nonce)
-      .then(async (res) => {
-        const payload = res.payload;
-
-        if (!(await this.isTrustedIssuer(res))) {
-          throw new Error('Credential issuer is not trusted');
-        }
-        logger.debug(
-          `Credential verified successfully: ${JSON.stringify(res, null, 2)}`,
-        );
-
-        await updateSessionWithCredentialInfo(
-          originalSession,
-          payload as SessionInfo,
-        );
-
-        await this.updateAuthorizationRequestStatus(
-          originalSession,
-          'accepted',
-        );
-
-        return res;
-      })
       .catch(async (e) => {
-        logger.error(`Error verifying credential: ${e}`);
+        const message = e instanceof Error ? e.message : String(e);
+        logger.error(`Error verifying credential: ${message}`);
         await this.updateAuthorizationRequestStatus(
           originalSession,
           'rejected',
         );
+        await logVerificationFailed(originalSession, message);
         throw new Error('Could not verify the credential');
       });
+
+    if (!(await this.isTrustedIssuer(verified))) {
+      await this.updateAuthorizationRequestStatus(originalSession, 'rejected');
+      await logVerificationFailed(
+        originalSession,
+        'Credential issuer is not trusted',
+      );
+      throw new Error('Credential issuer is not trusted');
+    }
+    logger.debug(
+      `Credential verified successfully: ${JSON.stringify(verified, null, 2)}`,
+    );
+
+    await updateSessionWithCredentialInfo(
+      originalSession,
+      verified.payload as SessionInfo,
+    ).catch(async (e) => {
+      const message = e instanceof Error ? e.message : String(e);
+      logger.error(`Error updating session with credential info: ${message}`);
+      await this.updateAuthorizationRequestStatus(originalSession, 'rejected');
+      await logVerificationFailed(originalSession, message);
+      throw e;
+    });
+
+    await this.updateAuthorizationRequestStatus(originalSession, 'accepted');
 
     await logVerificationSucceeded(
       originalSession,
