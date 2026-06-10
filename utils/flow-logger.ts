@@ -1,10 +1,6 @@
 import { updateSudo } from '@lblod/mu-auth-sudo';
 import crypto from 'node:crypto';
-import {
-  sparqlEscapeDateTime,
-  sparqlEscapeString,
-  sparqlEscapeUri,
-} from 'mu';
+import { sparqlEscapeDateTime, sparqlEscapeString, sparqlEscapeUri } from 'mu';
 import type { SessionInfo } from './credential-format';
 import env from './environment';
 
