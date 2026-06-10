@@ -176,24 +176,29 @@ export async function getIssuerRouter(issuer: VCIssuer) {
     //   return;
     // }
     if (!jwt) {
-      await logIssuanceFailed(sessionInfo.sessionUri!, 'missing_proof');
-      res.status(400).send({ error: 'missing_proof' });
+      const message = 'missing_proof';
+      logger.error(message);
+      await logIssuanceFailed(sessionInfo.sessionUri!, message);
+      res.status(400).send({ error: message });
       return;
     }
     const payload = jwt.split('.')[1];
     if (!payload) {
-      await logIssuanceFailed(sessionInfo.sessionUri!, 'invalid_proof');
-      res.status(400).send({ error: 'invalid_proof' });
+      const message = 'invalid_proof';
+      logger.error(message);
+      await logIssuanceFailed(sessionInfo.sessionUri!, message);
+      res.status(400).send({ error: message });
       return;
     }
 
     const { did, jwk, walletSupportsDid } = await issuer
       .validateProofAndGetHolderDid(jwt, expectedNonce)
       .catch(async (e) => {
-        const message = e instanceof Error ? e.message : String(e);
-        logger.error(`Error validating proof: ${message}`);
+        const errorMessage = e instanceof Error ? e.message : String(e);
+        const message = `Error validating proof: ${errorMessage}`;
+        logger.error(message);
         await logIssuanceFailed(sessionInfo.sessionUri!, message);
-        res.status(400).send({ error: message });
+        res.status(400).send({ error: errorMessage });
         return { did: null, jwk: null, walletSupportsDid: false };
       });
 
@@ -207,10 +212,11 @@ export async function getIssuerRouter(issuer: VCIssuer) {
     const signedVC = await issuer
       .issueCredential(did, jwk, sessionInfo, token, walletSupportsDid)
       .catch(async (e) => {
-        const message = e instanceof Error ? e.message : String(e);
-        logger.error(`Error issuing credential: ${message}`);
+        const errorMessage = e instanceof Error ? e.message : String(e);
+        const message = `Error issuing credential: ${errorMessage}`;
+        logger.error(message);
         await logIssuanceFailed(sessionInfo.sessionUri!, message);
-        res.status(400).send({ error: message });
+        res.status(400).send({ error: errorMessage });
         return null;
       });
 
@@ -221,10 +227,11 @@ export async function getIssuerRouter(issuer: VCIssuer) {
     const cNonce = await issuer
       .generateNonce(walletSession)
       .catch(async (e) => {
-        const message = e instanceof Error ? e.message : String(e);
-        logger.error(`Error generating issuance nonce: ${message}`);
+        const errorMessage = e instanceof Error ? e.message : String(e);
+        const message = `Error generating issuance nonce: ${errorMessage}`;
+        logger.error(message);
         await logIssuanceFailed(sessionInfo.sessionUri!, message);
-        res.status(500).send({ error: message });
+        res.status(500).send({ error: errorMessage });
         return null;
       });
 
