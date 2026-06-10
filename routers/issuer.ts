@@ -170,74 +170,84 @@ export async function getIssuerRouter(issuer: VCIssuer) {
 
     await logIssuanceStarted(sessionInfo.sessionUri!);
 
-    try {
-      // we don't actually have multiple credential types yet, so even if the wallet sends this, we can ignore it
-      // if (credential_configuration_id !== env.CREDENTIAL_TYPE) {
-      //   res.status(400).send({ error: 'invalid_credential_configuration_id' });
-      //   return;
-      // }
-      if (!jwt) {
-        await logIssuanceFailed(sessionInfo.sessionUri!, 'missing_proof');
-        res.status(400).send({ error: 'missing_proof' });
-        return;
-      }
-      const payload = jwt.split('.')[1];
-      if (!payload) {
-        await logIssuanceFailed(sessionInfo.sessionUri!, 'invalid_proof');
-        res.status(400).send({ error: 'invalid_proof' });
-        return;
-      }
-
-      const { did, jwk, walletSupportsDid } = await issuer
-        .validateProofAndGetHolderDid(jwt, expectedNonce)
-        .catch(async (e) => {
-          const message = e instanceof Error ? e.message : String(e);
-          logger.error(`Error validating proof: ${message}`);
-          await logIssuanceFailed(sessionInfo.sessionUri!, message);
-          res.status(400).send({ error: message });
-          return { did: null, jwk: null, walletSupportsDid: false };
-        });
-
-      if (!did) {
-        return; // we already sent a response in the catch block
-      }
-
-      logger.debug(`holder did: ${did}`);
-      logger.debug(`holder jwk: ${JSON.stringify(jwk)}`);
-
-      const signedVC = await issuer.issueCredential(
-        did,
-        jwk,
-        sessionInfo,
-        token,
-        walletSupportsDid,
-      );
-
-      const response = {
-        c_nonce: await issuer.generateNonce(walletSession), // for old specs
-        c_nonce_expires_in: 300, // yeah... it really doesn't, for old specs
-        format: 'vc+sd-jwt', // for old specs
-      };
-
-      // old specs want a single credential, newer specs want an array of credentials.
-      if (env.SINGLE_CREDENTIAL_RESPONSE) {
-        response['credential'] = signedVC;
-      } else {
-        response['credentials'] = [{ credential: signedVC }];
-      }
-
-      await logIssuanceSucceeded(sessionInfo.sessionUri!, sessionInfo);
-
-      res.send(response);
-    } catch (e) {
-      const message = e instanceof Error ? e.message : String(e);
-      logger.error(`Error during credential issuance: ${message}`);
-      await logIssuanceFailed(sessionInfo.sessionUri!, message);
-
-      if (!res.headersSent) {
-        res.status(400).send({ error: message });
-      }
+    // we don't actually have multiple credential types yet, so even if the wallet sends this, we can ignore it
+    // if (credential_configuration_id !== env.CREDENTIAL_TYPE) {
+    //   res.status(400).send({ error: 'invalid_credential_configuration_id' });
+    //   return;
+    // }
+    if (!jwt) {
+      await logIssuanceFailed(sessionInfo.sessionUri!, 'missing_proof');
+      res.status(400).send({ error: 'missing_proof' });
+      return;
     }
+    const payload = jwt.split('.')[1];
+    if (!payload) {
+      await logIssuanceFailed(sessionInfo.sessionUri!, 'invalid_proof');
+      res.status(400).send({ error: 'invalid_proof' });
+      return;
+    }
+
+    const { did, jwk, walletSupportsDid } = await issuer
+      .validateProofAndGetHolderDid(jwt, expectedNonce)
+      .catch(async (e) => {
+        const message = e instanceof Error ? e.message : String(e);
+        logger.error(`Error validating proof: ${message}`);
+        await logIssuanceFailed(sessionInfo.sessionUri!, message);
+        res.status(400).send({ error: message });
+        return { did: null, jwk: null, walletSupportsDid: false };
+      });
+
+    if (!did) {
+      return; // we already sent a response in the catch block
+    }
+
+    logger.debug(`holder did: ${did}`);
+    logger.debug(`holder jwk: ${JSON.stringify(jwk)}`);
+
+    const signedVC = await issuer
+      .issueCredential(did, jwk, sessionInfo, token, walletSupportsDid)
+      .catch(async (e) => {
+        const message = e instanceof Error ? e.message : String(e);
+        logger.error(`Error issuing credential: ${message}`);
+        await logIssuanceFailed(sessionInfo.sessionUri!, message);
+        res.status(400).send({ error: message });
+        return null;
+      });
+
+    if (!signedVC) {
+      return;
+    }
+
+    const cNonce = await issuer
+      .generateNonce(walletSession)
+      .catch(async (e) => {
+        const message = e instanceof Error ? e.message : String(e);
+        logger.error(`Error generating issuance nonce: ${message}`);
+        await logIssuanceFailed(sessionInfo.sessionUri!, message);
+        res.status(500).send({ error: message });
+        return null;
+      });
+
+    if (!cNonce) {
+      return;
+    }
+
+    const response = {
+      c_nonce: cNonce, // for old specs
+      c_nonce_expires_in: 300, // yeah... it really doesn't, for old specs
+      format: 'vc+sd-jwt', // for old specs
+    };
+
+    // old specs want a single credential, newer specs want an array of credentials.
+    if (env.SINGLE_CREDENTIAL_RESPONSE) {
+      response['credential'] = signedVC;
+    } else {
+      response['credentials'] = [{ credential: signedVC }];
+    }
+
+    await logIssuanceSucceeded(sessionInfo.sessionUri!, sessionInfo);
+
+    res.send(response);
   });
 
   router.get('/issuance-status', async (req, res) => {
