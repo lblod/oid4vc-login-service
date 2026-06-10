@@ -1,6 +1,10 @@
 import { updateSudo } from '@lblod/mu-auth-sudo';
-import crypto from 'node:crypto';
-import { sparqlEscapeDateTime, sparqlEscapeString, sparqlEscapeUri } from 'mu';
+import {
+  sparqlEscapeDateTime,
+  sparqlEscapeString,
+  sparqlEscapeUri,
+  uuid,
+} from 'mu';
 import type { SessionInfo } from './credential-format';
 import env from './environment';
 
@@ -20,7 +24,7 @@ async function insertFlowEvent(
   sessionInfo?: SessionInfo,
   errorMessage?: string,
 ): Promise<void> {
-  const id = crypto.randomUUID();
+  const id = uuid();
   const uri = `${EVENT_URI_BASE}${id}`;
 
   const extraTriples: string[] = [];
