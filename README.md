@@ -59,6 +59,7 @@ You may not have an existing did file or public/private keys. In that case, fill
 - **VERIFIER_USE_X509**: whether or not the verifier should use an x509_hash clientId. Default = false. This is required to make the verifier work with the EUDI wallet, which doesn't support DIDs at the time of this writing.
 - **VERIFIER_X509_CERTS**: required if VERIFIER_USE_X509 is true, points to the location of the x509 certificates as a folder that should contain fullchain.pem, key.pem and cert.pem.
 - **WORKING_GRAPH**: the uri of the temporary graph to put data related to the issuance and verification of verifiable credentials. This data is always short-lived, you should be able to delete this graph at any time. Default 'http://mu.semte.ch/graphs/verifiable-credentials/temp'
+- **LOG_GRAPH**: the uri of the graph to put triples describing start, finish and possibly fail events happening during the issuing and verification flows. Default 'http://mu.semte.ch/graphs/verifiable-credentials/logs'
 
 Note: ES256 is untested, all wallets tested so far.
 
