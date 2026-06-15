@@ -10,6 +10,11 @@ import {
 } from '../utils/credential-format';
 import { VCIssuer } from '../services/issuer';
 import { logger } from '../utils/logger';
+import {
+  storeCredentialIssuanceFailedEvent,
+  storeCredentialIssuanceStartedEvent,
+  storeCredentialIssuanceSucceededEvent,
+} from '../utils/flow-event-store';
 
 export async function getIssuerRouter(issuer: VCIssuer) {
   const router = Router();
@@ -162,28 +167,50 @@ export async function getIssuerRouter(issuer: VCIssuer) {
       res.status(401).send({ error: 'invalid_token' });
       return;
     }
+
+    await storeCredentialIssuanceStartedEvent(sessionInfo.sessionUri!);
+
     // we don't actually have multiple credential types yet, so even if the wallet sends this, we can ignore it
     // if (credential_configuration_id !== env.CREDENTIAL_TYPE) {
     //   res.status(400).send({ error: 'invalid_credential_configuration_id' });
     //   return;
     // }
     if (!jwt) {
-      res.status(400).send({ error: 'missing_proof' });
+      const message = 'missing_proof';
+      logger.error(message);
+      await storeCredentialIssuanceFailedEvent(
+        sessionInfo.sessionUri!,
+        message,
+      );
+      res.status(400).send({ error: message });
       return;
     }
     const payload = jwt.split('.')[1];
     if (!payload) {
-      res.status(400).send({ error: 'invalid_proof' });
+      const message = 'invalid_proof';
+      logger.error(message);
+      await storeCredentialIssuanceFailedEvent(
+        sessionInfo.sessionUri!,
+        message,
+      );
+      res.status(400).send({ error: message });
       return;
     }
 
     const { did, jwk, walletSupportsDid } = await issuer
       .validateProofAndGetHolderDid(jwt, expectedNonce)
-      .catch((e) => {
-        logger.error(`Error validating proof: ${e}`);
-        res.status(400).send({ error: e.message });
+      .catch(async (e) => {
+        const errorMessage = e instanceof Error ? e.message : String(e);
+        const message = `Error validating proof: ${errorMessage}`;
+        logger.error(message);
+        await storeCredentialIssuanceFailedEvent(
+          sessionInfo.sessionUri!,
+          message,
+        );
+        res.status(400).send({ error: errorMessage });
         return { did: null, jwk: null, walletSupportsDid: false };
       });
+
     if (!did) {
       return; // we already sent a response in the catch block
     }
@@ -191,16 +218,44 @@ export async function getIssuerRouter(issuer: VCIssuer) {
     logger.debug(`holder did: ${did}`);
     logger.debug(`holder jwk: ${JSON.stringify(jwk)}`);
 
-    const signedVC = await issuer.issueCredential(
-      did,
-      jwk,
-      sessionInfo,
-      token,
-      walletSupportsDid,
-    );
+    const signedVC = await issuer
+      .issueCredential(did, jwk, sessionInfo, token, walletSupportsDid)
+      .catch(async (e) => {
+        const errorMessage = e instanceof Error ? e.message : String(e);
+        const message = `Error issuing credential: ${errorMessage}`;
+        logger.error(message);
+        await storeCredentialIssuanceFailedEvent(
+          sessionInfo.sessionUri!,
+          message,
+        );
+        res.status(400).send({ error: errorMessage });
+        return null;
+      });
+
+    if (!signedVC) {
+      return;
+    }
+
+    const cNonce = await issuer
+      .generateNonce(walletSession)
+      .catch(async (e) => {
+        const errorMessage = e instanceof Error ? e.message : String(e);
+        const message = `Error generating issuance nonce: ${errorMessage}`;
+        logger.error(message);
+        await storeCredentialIssuanceFailedEvent(
+          sessionInfo.sessionUri!,
+          message,
+        );
+        res.status(500).send({ error: errorMessage });
+        return null;
+      });
+
+    if (!cNonce) {
+      return;
+    }
 
     const response = {
-      c_nonce: await issuer.generateNonce(walletSession), // for old specs
+      c_nonce: cNonce, // for old specs
       c_nonce_expires_in: 300, // yeah... it really doesn't, for old specs
       format: 'vc+sd-jwt', // for old specs
     };
@@ -211,6 +266,11 @@ export async function getIssuerRouter(issuer: VCIssuer) {
     } else {
       response['credentials'] = [{ credential: signedVC }];
     }
+
+    await storeCredentialIssuanceSucceededEvent(
+      sessionInfo.sessionUri!,
+      sessionInfo,
+    );
 
     res.send(response);
   });

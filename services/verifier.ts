@@ -17,6 +17,11 @@ import {
   SessionInfo,
   updateSessionWithCredentialInfo,
 } from '../utils/credential-format';
+import {
+  storeCredentialVerificationFailedEvent,
+  storeCredentialVerificationStartedEvent,
+  storeCredentialVerificationSucceededEvent,
+} from '../utils/flow-event-store';
 import { logger } from '../utils/logger';
 
 export class VCVerifier {
@@ -286,22 +291,39 @@ export class VCVerifier {
     if (!response) {
       throw new Error('No response field in presentation response');
     }
+
+    await storeCredentialVerificationStartedEvent(originalSession);
+
     const { nonce, privateKey } = await this.fetchAuthorizationRequestKey(
       originalSession,
       responseCode,
     );
-    const { payload, protectedHeader } = await jose.jwtDecrypt(
-      response,
-      privateKey,
-      {
+
+    const { payload, protectedHeader } = await jose
+      .jwtDecrypt(response, privateKey, {
         contentEncryptionAlgorithms: ['A128GCM'],
         keyManagementAlgorithms: ['ECDH-ES'],
         // we could verify the audience here if we wanted to be sure it's meant for us
-      },
-    );
+      })
+      .catch(async (e) => {
+        const errorMessage = e instanceof Error ? e.message : String(e);
+        const message = `Error decrypting presentation response: ${errorMessage}`;
+        logger.error(message);
+        await this.updateAuthorizationRequestStatus(
+          originalSession,
+          'rejected',
+        );
+        await storeCredentialVerificationFailedEvent(originalSession, message);
+        throw e;
+      });
+
     const vp_token = payload.vp_token as { roles_credential?: string };
     if (!vp_token?.roles_credential) {
-      throw new Error('No roles_credential in vp_token');
+      const message = 'No roles_credential in vp_token';
+      logger.error(message);
+      await this.updateAuthorizationRequestStatus(originalSession, 'rejected');
+      await storeCredentialVerificationFailedEvent(originalSession, message);
+      throw new Error(message);
     }
     const credential = vp_token.roles_credential;
 
@@ -316,36 +338,48 @@ export class VCVerifier {
 
     const verified = await this.sdJwtService
       .validateAndDecodeCredential(safeCredential, nonce)
-      .then(async (res) => {
-        const payload = res.payload;
-
-        if (!(await this.isTrustedIssuer(res))) {
-          throw new Error('Credential issuer is not trusted');
-        }
-        logger.debug(
-          `Credential verified successfully: ${JSON.stringify(res, null, 2)}`,
-        );
-
-        await updateSessionWithCredentialInfo(
-          originalSession,
-          payload as SessionInfo,
-        );
-
-        await this.updateAuthorizationRequestStatus(
-          originalSession,
-          'accepted',
-        );
-
-        return res;
-      })
       .catch(async (e) => {
-        logger.error(`Error verifying credential: ${e}`);
+        const errorMessage = e instanceof Error ? e.message : String(e);
+        const message = `Error verifying credential: ${errorMessage}`;
+        const responseMessage = 'Could not verify the credential';
+        logger.error(message);
         await this.updateAuthorizationRequestStatus(
           originalSession,
           'rejected',
         );
-        throw new Error('Could not verify the credential');
+        await storeCredentialVerificationFailedEvent(originalSession, message);
+        throw new Error(responseMessage);
       });
+
+    if (!(await this.isTrustedIssuer(verified))) {
+      const message = 'Credential issuer is not trusted';
+      logger.error(message);
+      await this.updateAuthorizationRequestStatus(originalSession, 'rejected');
+      await storeCredentialVerificationFailedEvent(originalSession, message);
+      throw new Error(message);
+    }
+    logger.debug(
+      `Credential verified successfully: ${JSON.stringify(verified, null, 2)}`,
+    );
+
+    await updateSessionWithCredentialInfo(
+      originalSession,
+      verified.payload as SessionInfo,
+    ).catch(async (e) => {
+      const errorMessage = e instanceof Error ? e.message : String(e);
+      const message = `Error updating session with credential info: ${errorMessage}`;
+      logger.error(message);
+      await this.updateAuthorizationRequestStatus(originalSession, 'rejected');
+      await storeCredentialVerificationFailedEvent(originalSession, message);
+      throw e;
+    });
+
+    await this.updateAuthorizationRequestStatus(originalSession, 'accepted');
+
+    await storeCredentialVerificationSucceededEvent(
+      originalSession,
+      verified.payload as SessionInfo,
+    );
 
     return verified;
   }

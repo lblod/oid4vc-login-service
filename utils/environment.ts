@@ -69,6 +69,9 @@ const environment = {
   WORKING_GRAPH:
     process.env.WORKING_GRAPH ||
     'http://mu.semte.ch/graphs/verifiable-credentials/temp',
+  LOG_GRAPH:
+    process.env.LOG_GRAPH ||
+    'http://mu.semte.ch/graphs/verifiable-credentials/logs',
 };
 
 if (environment.VERIFIER_USE_X509) {
