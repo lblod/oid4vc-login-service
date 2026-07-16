@@ -359,7 +359,7 @@ export class VCVerifier {
 
     const firstCredential = credential[0];
     const credentialHeader = jose.decodeProtectedHeader(firstCredential) as {
-      keyId?: string;
+      kid?: string;
     };
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const credentialPayload = jose.decodeJwt(
@@ -376,7 +376,7 @@ export class VCVerifier {
         iss,
         firstCredential,
         nonce,
-        credentialHeader.keyId,
+        credentialHeader.kid,
       );
     const validatedPayload = validatedCredential.payload;
 
