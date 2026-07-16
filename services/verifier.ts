@@ -362,7 +362,9 @@ export class VCVerifier {
       keyId?: string;
     };
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const credentialPayload = jose.decodeJwt(firstCredential) as any;
+    const credentialPayload = jose.decodeJwt(
+      firstCredential.split('.').slice(0, 3).join('.'),
+    ) as any;
     const iss = credentialPayload?.iss;
 
     if (!(await this.isTrustedIssuer(iss))) {
