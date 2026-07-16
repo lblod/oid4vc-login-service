@@ -295,6 +295,7 @@ export class VCVerifier {
       );
       await this.updateAuthorizationRequestStatus(originalSession, 'accepted');
       return validated;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (e: any) {
       logger.error(`Error verifying credential: ${e}`);
       await this.updateAuthorizationRequestStatus(originalSession, 'rejected');
@@ -360,6 +361,7 @@ export class VCVerifier {
     const credentialHeader = jose.decodeProtectedHeader(firstCredential) as {
       keyId?: string;
     };
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const credentialPayload = jose.decodeJwt(firstCredential) as any;
     const iss = credentialPayload?.iss;
 

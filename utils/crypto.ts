@@ -132,7 +132,7 @@ export function getPrivateKeyAsCryptoKey(key = env.ISSUER_PRIVATE_KEY) {
   return privateKey;
 }
 
-let publicKeyAsCryptoKey: { [key: string]: Crypto.KeyObject } = {};
+const publicKeyAsCryptoKey: { [key: string]: Crypto.KeyObject } = {};
 
 export function getPublicKeyAsCryptoKey(key = env.ISSUER_PUBLIC_KEY) {
   if (!key) {
@@ -151,7 +151,7 @@ export function getPublicKeyAsCryptoKey(key = env.ISSUER_PUBLIC_KEY) {
   return publicKeyAsCryptoKey[key];
 }
 
-let publicKeyAsJwk: { [key: string]: JsonWebKey } = {};
+const publicKeyAsJwk: { [key: string]: JsonWebKey } = {};
 
 export function getPublicKeyAsJwk(key = env.ISSUER_PUBLIC_KEY) {
   if (!key) {
