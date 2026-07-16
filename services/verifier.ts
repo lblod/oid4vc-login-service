@@ -357,7 +357,10 @@ export class VCVerifier {
     );
 
     const firstCredential = credential[0];
-    const credentialPayload = jose.decodeJwt(credential) as any;
+    const credentialHeader = jose.decodeProtectedHeader(firstCredential) as {
+      keyId?: string;
+    };
+    const credentialPayload = jose.decodeJwt(firstCredential) as any;
     const iss = credentialPayload?.iss;
 
     if (!(await this.isTrustedIssuer(iss))) {
@@ -369,6 +372,7 @@ export class VCVerifier {
         iss,
         firstCredential,
         nonce,
+        credentialHeader.keyId,
       );
     const validatedPayload = validatedCredential.payload;
 

@@ -26,8 +26,23 @@ const getJwkFromDid = async (did: string) => {
   if (!resolvedDid) {
     throw new Error(`Could not resolve DID: ${did}`);
   }
-  const publicKey =
-    resolvedDid.didDocument?.verificationMethod?.[0]?.publicKeyJwk;
+  const verificationMethods = resolvedDid.didDocument?.verificationMethod;
+  const publicKey = verificationMethods?.find(
+    (m) => m.publicKeyJwk,
+  )?.publicKeyJwk;
+  if (!publicKey) {
+    throw new Error(`No public key found for DID: ${did}`);
+  }
+  return publicKey;
+};
+
+const getKeyFromDid = async (did: string, keyId: string) => {
+  const resolvedDid = await resolveDid(did);
+  if (!resolvedDid) {
+    throw new Error(`Could not resolve DID: ${did}`);
+  }
+  const verificationMethods = resolvedDid.didDocument?.verificationMethod;
+  const publicKey = verificationMethods?.find((m) => m.id === keyId);
   if (!publicKey) {
     throw new Error(`No public key found for DID: ${did}`);
   }
@@ -200,11 +215,29 @@ export class SDJwtVCService {
     issuerDid: string,
     credential: string,
     nonce: string,
+    keyId?: string,
   ) {
-    const issuerKey = await getJwkFromDid(issuerDid);
-    const { signer, verifier, kbVerifier } = await createSignerVerifier({
-      publicKeyJwk: issuerKey,
-    });
+    let signerVerifier;
+    if (keyId) {
+      const issuerKey = await getKeyFromDid(issuerDid, keyId);
+      if (issuerKey.type === 'JsonWebKey2020') {
+        signerVerifier = await createSignerVerifier({
+          publicKeyJwk: issuerKey.publicKeyJwk,
+        });
+      } else if (issuerKey.type === 'Ed25519VerificationKey2020') {
+        signerVerifier = await createSignerVerifier({
+          publicKeyMultibase: issuerKey.publicKeyMultibase,
+        });
+      } else {
+        throw new Error(`Unsupported issuer key type: ${issuerKey.type}`);
+      }
+    } else {
+      const issuerKey = await getJwkFromDid(issuerDid);
+      signerVerifier = await createSignerVerifier({
+        publicKeyJwk: issuerKey,
+      });
+    }
+    const { signer, verifier, kbVerifier } = signerVerifier;
 
     const sdjwt = new SDJwtVcInstance({
       signer,

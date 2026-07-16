@@ -247,7 +247,7 @@ export async function jwkToCryptoKey(
   if (jwk.kty === 'oct') {
     throw new Error('Unsupported kty');
   }
-  const cryptoKey = jose.importJWK(jwk) as unknown as CryptoKey; // kty oct not supported, so should return cryptokey
+  const cryptoKey = (await jose.importJWK(jwk)) as unknown as CryptoKey; // kty oct not supported, so should return cryptokey
   const spkiDer = await crypto.subtle.exportKey('spki', cryptoKey);
 
   // 3. Convert the ArrayBuffer to a Buffer
