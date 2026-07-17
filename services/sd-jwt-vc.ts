@@ -10,6 +10,7 @@ import * as Crypto from 'node:crypto';
 import {
   getPrivateKeyAsCryptoKey,
   getPublicKeyAsCryptoKey,
+  jwkToCryptoKey,
   resolveDid,
 } from '../utils/crypto';
 import env from '../utils/environment';
@@ -20,22 +21,51 @@ import {
 } from '../utils/credential-format';
 import { logger } from '../utils/logger';
 
-const getHolderJwkFromDid = async (did) => {
+const getJwkFromDid = async (did: string) => {
   const resolvedDid = await resolveDid(did);
   if (!resolvedDid) {
     throw new Error(`Could not resolve DID: ${did}`);
   }
-  const publicKey =
-    resolvedDid.didDocument?.verificationMethod?.[0]?.publicKeyJwk;
+  const verificationMethods = resolvedDid.didDocument?.verificationMethod;
+  const publicKey = verificationMethods?.find(
+    (m) => m.publicKeyJwk,
+  )?.publicKeyJwk;
   if (!publicKey) {
     throw new Error(`No public key found for DID: ${did}`);
   }
   return publicKey;
 };
 
-const createSignerVerifier = () => {
+const getKeyFromDid = async (did: string, keyId: string) => {
+  const resolvedDid = await resolveDid(did);
+  if (!resolvedDid) {
+    throw new Error(`Could not resolve DID: ${did}`);
+  }
+  const verificationMethods = resolvedDid.didDocument?.verificationMethod;
+  const publicKey = verificationMethods?.find((m) => m.id === keyId);
+  if (!publicKey) {
+    throw new Error(`No public key found for DID: ${did}`);
+  }
+  return publicKey;
+};
+
+const createSignerVerifier = async (
+  config: {
+    publicKeyMultibase?: string;
+    publicKeyJwk?: JsonWebKey;
+  } = {
+    publicKeyMultibase: env.ISSUER_PUBLIC_KEY,
+  },
+) => {
   const privateKey = getPrivateKeyAsCryptoKey();
-  const publicKey = getPublicKeyAsCryptoKey();
+  let publicKey;
+  if (config.publicKeyJwk) {
+    publicKey = await jwkToCryptoKey(config.publicKeyJwk);
+  } else if (config.publicKeyMultibase) {
+    publicKey = getPublicKeyAsCryptoKey(config.publicKeyMultibase);
+  } else {
+    throw new Error('No public key provided while creating signer/verifier');
+  }
 
   const signer: Signer = async (data: string) => {
     const sig = Crypto.sign(null, Buffer.from(data), privateKey);
@@ -52,7 +82,7 @@ const createSignerVerifier = () => {
   const kbVerifier = async (data: string, sig: string, payload: JwtPayload) => {
     let holderJwk = payload.cnf?.jwk;
     if (!holderJwk) {
-      holderJwk = await getHolderJwkFromDid(
+      holderJwk = await getJwkFromDid(
         (payload.cnf as unknown as { kid: string })?.kid,
       );
     }
@@ -83,7 +113,7 @@ const createSignerVerifier = () => {
 
 export class SDJwtVCService {
   ready = false;
-  sdjwt = null;
+  sdjwt: SDJwtVcInstance | null = null;
 
   constructor() {}
 
@@ -181,8 +211,44 @@ export class SDJwtVCService {
     return credential;
   }
 
-  async validateAndDecodeCredential(credential: string, nonce: string) {
-    const verified = await this.sdjwt.verify(credential, {
+  async validateAndDecodeCredential(
+    issuerDid: string,
+    credential: string,
+    nonce: string,
+    keyId?: string,
+  ) {
+    let signerVerifier;
+    if (keyId) {
+      const issuerKey = await getKeyFromDid(issuerDid, keyId);
+      if (issuerKey.type === 'JsonWebKey2020') {
+        signerVerifier = await createSignerVerifier({
+          publicKeyJwk: issuerKey.publicKeyJwk,
+        });
+      } else if (issuerKey.type === 'Ed25519VerificationKey2020') {
+        signerVerifier = await createSignerVerifier({
+          publicKeyMultibase: issuerKey.publicKeyMultibase,
+        });
+      } else {
+        throw new Error(`Unsupported issuer key type: ${issuerKey.type}`);
+      }
+    } else {
+      const issuerKey = await getJwkFromDid(issuerDid);
+      signerVerifier = await createSignerVerifier({
+        publicKeyJwk: issuerKey,
+      });
+    }
+    const { signer, verifier, kbVerifier } = signerVerifier;
+
+    const sdjwt = new SDJwtVcInstance({
+      signer,
+      verifier,
+      kbVerifier,
+      signAlg: 'EdDSA',
+      hasher: digest,
+      hashAlg: 'sha-256',
+      saltGenerator: generateSalt,
+    });
+    const verified = await sdjwt.verify(credential, {
       requiredClaimKeys: getRequiredClaimsForValidation(),
       keyBindingNonce: nonce,
     });

@@ -98,6 +98,12 @@ const privateKeyAsCryptoKey: { [key: string]: Crypto.KeyObject | null } = {};
 export function getPrivateES256KeyAsCryptoKey(
   key = env.VERIFIER_ES256_PRIVATE_KEY,
 ) {
+  if (!key) {
+    throw new Error(
+      'No Key provided when asking for private ES256 key as CryptoKey',
+    );
+  }
+
   if (privateKeyAsCryptoKey[key]) {
     return privateKeyAsCryptoKey[key];
   }
@@ -109,6 +115,9 @@ export function getPrivateES256KeyAsCryptoKey(
 }
 
 export function getPrivateKeyAsCryptoKey(key = env.ISSUER_PRIVATE_KEY) {
+  if (!key) {
+    throw new Error('No Key provided when asking for private key as CryptoKey');
+  }
   if (privateKeyAsCryptoKey[key]) {
     return privateKeyAsCryptoKey[key];
   }
@@ -123,35 +132,42 @@ export function getPrivateKeyAsCryptoKey(key = env.ISSUER_PRIVATE_KEY) {
   return privateKey;
 }
 
-let publicKeyAsCryptoKey: Crypto.KeyObject | null = null;
+const publicKeyAsCryptoKey: { [key: string]: Crypto.KeyObject } = {};
 
-export function getPublicKeyAsCryptoKey() {
-  if (publicKeyAsCryptoKey) {
-    return publicKeyAsCryptoKey;
+export function getPublicKeyAsCryptoKey(key = env.ISSUER_PUBLIC_KEY) {
+  if (!key) {
+    throw new Error('No key provided when asking for public key as CryptoKey');
   }
-  publicKeyAsCryptoKey = Crypto.createPublicKey({
+  if (publicKeyAsCryptoKey[key]) {
+    return publicKeyAsCryptoKey[key];
+  }
+  publicKeyAsCryptoKey[key] = Crypto.createPublicKey({
     key: publicKeyDerEncode({
-      publicKeyBytes: getPublicKeyBuffer(env.ISSUER_PUBLIC_KEY),
+      publicKeyBytes: getPublicKeyBuffer(key),
     }),
     format: 'der',
     type: 'spki',
   });
-  return publicKeyAsCryptoKey;
+  return publicKeyAsCryptoKey[key];
 }
 
-let publicKeyAsJwk: JsonWebKey | null = null;
+const publicKeyAsJwk: { [key: string]: JsonWebKey } = {};
 
-export function getPublicKeyAsJwk() {
-  if (publicKeyAsJwk) {
-    return publicKeyAsJwk;
+export function getPublicKeyAsJwk(key = env.ISSUER_PUBLIC_KEY) {
+  if (!key) {
+    throw new Error('No key provided when asking for public key as JWK');
   }
-  const publicKeyBytes = getPublicKeyBuffer(env.ISSUER_PUBLIC_KEY);
-  publicKeyAsJwk = {
+
+  if (publicKeyAsJwk[key]) {
+    return publicKeyAsJwk[key];
+  }
+  const publicKeyBytes = getPublicKeyBuffer(key!);
+  publicKeyAsJwk[key] = {
     kty: 'OKP',
     crv: 'Ed25519',
     x: Buffer.from(publicKeyBytes).toString('base64url'),
   };
-  return publicKeyAsJwk;
+  return publicKeyAsJwk[key];
 }
 
 const webResolver = getWebResolver();
@@ -222,5 +238,25 @@ export function getPrivateX509KeyAsCryptoKey(
 ) {
   return Crypto.createPrivateKey({
     key,
+  });
+}
+
+export async function jwkToCryptoKey(
+  jwk: JsonWebKey,
+): Promise<Crypto.KeyObject> {
+  if (jwk.kty === 'oct') {
+    throw new Error('Unsupported kty');
+  }
+  const cryptoKey = (await jose.importJWK(jwk)) as unknown as CryptoKey; // kty oct not supported, so should return cryptokey
+  const spkiDer = await crypto.subtle.exportKey('spki', cryptoKey);
+
+  // 3. Convert the ArrayBuffer to a Buffer
+  const spkiBuffer = Buffer.from(spkiDer);
+
+  // 4. Create a KeyObject from the SPKI buffer
+  return Crypto.createPublicKey({
+    key: spkiBuffer,
+    format: 'der',
+    type: 'spki',
   });
 }

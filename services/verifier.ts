@@ -287,6 +287,31 @@ export class VCVerifier {
     responseCode: string,
     body,
   ) {
+    try {
+      const validated = await this.unsafeHandlePresentationResponse(
+        originalSession,
+        responseCode,
+        body,
+      );
+      await this.updateAuthorizationRequestStatus(originalSession, 'accepted');
+      return validated;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } catch (e: any) {
+      logger.error(`Error verifying credential: ${e}`);
+      await this.updateAuthorizationRequestStatus(originalSession, 'rejected');
+      await storeCredentialVerificationFailedEvent(
+        originalSession,
+        e.message || e,
+      );
+      throw new Error('Could not verify the credential');
+    }
+  }
+
+  async unsafeHandlePresentationResponse(
+    originalSession: string,
+    responseCode: string,
+    body,
+  ) {
     const { response } = body;
     if (!response) {
       throw new Error('No response field in presentation response');
@@ -332,39 +357,36 @@ export class VCVerifier {
       `protectedHeader: ${JSON.stringify(protectedHeader, null, 2)}`,
     );
 
-    // old specs don't provide an array here.
-    // we only use the first credential we receive
-    const safeCredential = credential.split ? credential : credential[0];
+    const firstCredential = credential[0];
+    const credentialHeader = jose.decodeProtectedHeader(firstCredential) as {
+      kid?: string;
+    };
+    const credentialPayload = jose.decodeJwt(
+      firstCredential.split('.').slice(0, 3).join('.'),
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    ) as any;
+    const iss = credentialPayload?.iss;
 
-    const verified = await this.sdJwtService
-      .validateAndDecodeCredential(safeCredential, nonce)
-      .catch(async (e) => {
-        const errorMessage = e instanceof Error ? e.message : String(e);
-        const message = `Error verifying credential: ${errorMessage}`;
-        const responseMessage = 'Could not verify the credential';
-        logger.error(message);
-        await this.updateAuthorizationRequestStatus(
-          originalSession,
-          'rejected',
-        );
-        await storeCredentialVerificationFailedEvent(originalSession, message);
-        throw new Error(responseMessage);
-      });
-
-    if (!(await this.isTrustedIssuer(verified))) {
-      const message = 'Credential issuer is not trusted';
-      logger.error(message);
-      await this.updateAuthorizationRequestStatus(originalSession, 'rejected');
-      await storeCredentialVerificationFailedEvent(originalSession, message);
-      throw new Error(message);
+    if (!(await this.isTrustedIssuer(iss))) {
+      throw new Error('Credential issuer is not trusted');
     }
+
+    const validatedCredential =
+      await this.sdJwtService.validateAndDecodeCredential(
+        iss,
+        firstCredential,
+        nonce,
+        credentialHeader.kid,
+      );
+    const validatedPayload = validatedCredential.payload;
+
     logger.debug(
-      `Credential verified successfully: ${JSON.stringify(verified, null, 2)}`,
+      `Credential verified successfully: ${JSON.stringify(validatedCredential, null, 2)}`,
     );
 
     await updateSessionWithCredentialInfo(
       originalSession,
-      verified.payload as SessionInfo,
+      validatedPayload as unknown as SessionInfo,
     ).catch(async (e) => {
       const errorMessage = e instanceof Error ? e.message : String(e);
       const message = `Error updating session with credential info: ${errorMessage}`;
@@ -378,10 +400,10 @@ export class VCVerifier {
 
     await storeCredentialVerificationSucceededEvent(
       originalSession,
-      verified.payload as SessionInfo,
+      validatedPayload as unknown as SessionInfo,
     );
 
-    return verified;
+    return validatedCredential;
   }
 
   async storeAuthorizationRequestKey(
@@ -482,11 +504,9 @@ export class VCVerifier {
     `);
   }
 
-  async isTrustedIssuer(credentialVerificationResult) {
+  async isTrustedIssuer(issuer: string) {
     // async in case we ever want to make this more complex
 
-    return env.TRUSTED_ISSUERS.includes(
-      credentialVerificationResult.payload.iss,
-    );
+    return env.TRUSTED_ISSUERS.includes(issuer);
   }
 }
