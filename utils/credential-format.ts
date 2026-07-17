@@ -6,6 +6,7 @@ import {
   uuid,
 } from 'mu';
 import { querySudo, updateSudo } from '@lblod/mu-auth-sudo';
+import { randomUUID } from 'crypto';
 
 export const certificateProperties = [
   { field: 'firstName', label: 'First name', type: 'string' },
@@ -282,7 +283,7 @@ export const updateSessionWithCredentialInfo = async (
     return;
   }
 
-  const groupId = await getGroupId(group);
+  const groupId = await ensureGroupId(group);
 
   const accountGraph = env.ACCOUNT_GRAPH_TEMPLATE.replace(
     '{{groupId}}',
@@ -326,6 +327,35 @@ async function getGroupId(groupUri: string) {
     throw new Error(`No group found for uri ${groupUri}`);
   }
   return result.results.bindings[0].groupId.value;
+}
+
+async function ensureGroupId(groupUri: string) {
+  try {
+    return await getGroupId(groupUri);
+  } catch (e) {
+    const groupId = randomUUID();
+    const accountGraph = env.ACCOUNT_GRAPH_TEMPLATE.replace(
+      '{{groupId}}',
+      encodeURIComponent(groupId),
+    );
+
+    await updateSudo(`
+      PREFIX foaf: <http://xmlns.com/foaf/0.1/>
+      PREFIX dct: <http://purl.org/dc/terms/>
+      PREFIX mu: <http://mu.semte.ch/vocabularies/core/>
+      PREFIX ext: <http://mu.semte.ch/vocabularies/ext/>
+
+      INSERT DATA {
+        GRAPH ${sparqlEscapeUri(accountGraph)} {
+          ${sparqlEscapeUri(groupUri)} a ${sparqlEscapeUri(env.GROUP_TYPE)} ;
+            dct:created ${sparqlEscapeDateTime(new Date())} ;
+            dct:creator ${sparqlEscapeUri(env.SERVICE_HOMEPAGE)} ;
+            mu:uuid ${sparqlEscapeString(groupId)} .
+          }
+      }
+    `);
+    return groupId;
+  }
 }
 
 export async function selectAccountBySession(sessionUri: string): Promise<{
