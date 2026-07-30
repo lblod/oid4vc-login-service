@@ -395,7 +395,10 @@ export class VCVerifier {
     await this.updateAuthorizationRequestStatus(originalSession, 'accepted');
 
     const sessionInfo = validatedPayload as unknown as SessionInfo;
-    await storeCredentialVerificationSucceededEvent(originalSession, sessionInfo);
+    await storeCredentialVerificationSucceededEvent(
+      originalSession,
+      sessionInfo,
+    );
 
     return validatedCredential;
   }
