@@ -297,9 +297,6 @@ export class VCVerifier {
       return validated;
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (e: any) {
-      logger.error(
-        `Verification failed — session: ${originalSession}, error: ${e.message || e}`,
-      );
       await this.updateAuthorizationRequestStatus(originalSession, 'rejected');
       await storeCredentialVerificationFailedEvent(
         originalSession,
@@ -320,7 +317,6 @@ export class VCVerifier {
     }
 
     await storeCredentialVerificationStartedEvent(originalSession);
-    logger.info(`Verification started — session: ${originalSession}`);
 
     const { nonce, privateKey } = await this.fetchAuthorizationRequestKey(
       originalSession,
@@ -336,9 +332,6 @@ export class VCVerifier {
       .catch(async (e) => {
         const errorMessage = e instanceof Error ? e.message : String(e);
         const message = `Error decrypting presentation response: ${errorMessage}`;
-        logger.error(
-          `Verification failed — session: ${originalSession}, error: ${message}`,
-        );
         await this.updateAuthorizationRequestStatus(
           originalSession,
           'rejected',
@@ -350,9 +343,6 @@ export class VCVerifier {
     const vp_token = payload.vp_token as { roles_credential?: string };
     if (!vp_token?.roles_credential) {
       const message = 'No roles_credential in vp_token';
-      logger.error(
-        `Verification failed — session: ${originalSession}, error: ${message}`,
-      );
       await this.updateAuthorizationRequestStatus(originalSession, 'rejected');
       await storeCredentialVerificationFailedEvent(originalSession, message);
       throw new Error(message);
@@ -397,9 +387,6 @@ export class VCVerifier {
     ).catch(async (e) => {
       const errorMessage = e instanceof Error ? e.message : String(e);
       const message = `Error updating session with credential info: ${errorMessage}`;
-      logger.error(
-        `Verification failed — session: ${originalSession}, error: ${message}`,
-      );
       await this.updateAuthorizationRequestStatus(originalSession, 'rejected');
       await storeCredentialVerificationFailedEvent(originalSession, message);
       throw e;
@@ -408,13 +395,7 @@ export class VCVerifier {
     await this.updateAuthorizationRequestStatus(originalSession, 'accepted');
 
     const sessionInfo = validatedPayload as unknown as SessionInfo;
-    await storeCredentialVerificationSucceededEvent(
-      originalSession,
-      sessionInfo,
-    );
-    logger.info(
-      `Verification succeeded — session: ${originalSession}, account: ${sessionInfo.accountUri}, group: ${sessionInfo.group}, roles: ${sessionInfo.roles}`,
-    );
+    await storeCredentialVerificationSucceededEvent(originalSession, sessionInfo);
 
     return validatedCredential;
   }
