@@ -7,6 +7,7 @@ import {
 } from 'mu';
 import type { SessionInfo } from './credential-format';
 import env from './environment';
+import { logger } from './logger';
 
 const FLOW_EVENT_URI_BASE = 'http://data.lblod.info/flow-event/';
 
@@ -62,6 +63,7 @@ async function storeCredentialFlowEvent(
 export function storeCredentialIssuanceStartedEvent(
   sessionUri: string,
 ): Promise<void> {
+  logger.info(`Issuance started — session: ${sessionUri}`);
   return storeCredentialFlowEvent(
     CREDENTIAL_ISSUANCE_EVENT,
     'issuance-started',
@@ -73,6 +75,9 @@ export function storeCredentialIssuanceSucceededEvent(
   sessionUri: string,
   sessionInfo: SessionInfo,
 ): Promise<void> {
+  logger.info(
+    `Issuance succeeded — session: ${sessionUri}, account: ${sessionInfo.accountUri}, group: ${sessionInfo.group}, roles: ${sessionInfo.roles}`,
+  );
   return storeCredentialFlowEvent(
     CREDENTIAL_ISSUANCE_EVENT,
     'issuance-succeeded',
@@ -85,6 +90,9 @@ export function storeCredentialIssuanceFailedEvent(
   sessionUri: string,
   errorMessage: string,
 ): Promise<void> {
+  logger.error(
+    `Issuance failed — session: ${sessionUri}, error: ${errorMessage}`,
+  );
   return storeCredentialFlowEvent(
     CREDENTIAL_ISSUANCE_EVENT,
     'issuance-failed',
@@ -97,6 +105,7 @@ export function storeCredentialIssuanceFailedEvent(
 export function storeCredentialVerificationStartedEvent(
   sessionUri: string,
 ): Promise<void> {
+  logger.info(`Verification started — session: ${sessionUri}`);
   return storeCredentialFlowEvent(
     CREDENTIAL_VERIFICATION_EVENT,
     'verification-started',
@@ -108,6 +117,9 @@ export function storeCredentialVerificationSucceededEvent(
   sessionUri: string,
   sessionInfo: SessionInfo,
 ): Promise<void> {
+  logger.info(
+    `Verification succeeded — session: ${sessionUri}, account: ${sessionInfo.accountUri}, group: ${sessionInfo.group}, roles: ${sessionInfo.roles}`,
+  );
   return storeCredentialFlowEvent(
     CREDENTIAL_VERIFICATION_EVENT,
     'verification-succeeded',
@@ -120,6 +132,9 @@ export function storeCredentialVerificationFailedEvent(
   sessionUri: string,
   errorMessage: string,
 ): Promise<void> {
+  logger.error(
+    `Verification failed — session: ${sessionUri}, error: ${errorMessage}`,
+  );
   return storeCredentialFlowEvent(
     CREDENTIAL_VERIFICATION_EVENT,
     'verification-failed',

@@ -177,7 +177,6 @@ export async function getIssuerRouter(issuer: VCIssuer) {
     // }
     if (!jwt) {
       const message = 'missing_proof';
-      logger.error(message);
       await storeCredentialIssuanceFailedEvent(
         sessionInfo.sessionUri!,
         message,
@@ -188,7 +187,6 @@ export async function getIssuerRouter(issuer: VCIssuer) {
     const payload = jwt.split('.')[1];
     if (!payload) {
       const message = 'invalid_proof';
-      logger.error(message);
       await storeCredentialIssuanceFailedEvent(
         sessionInfo.sessionUri!,
         message,
@@ -202,7 +200,6 @@ export async function getIssuerRouter(issuer: VCIssuer) {
       .catch(async (e) => {
         const errorMessage = e instanceof Error ? e.message : String(e);
         const message = `Error validating proof: ${errorMessage}`;
-        logger.error(message);
         await storeCredentialIssuanceFailedEvent(
           sessionInfo.sessionUri!,
           message,
@@ -223,7 +220,6 @@ export async function getIssuerRouter(issuer: VCIssuer) {
       .catch(async (e) => {
         const errorMessage = e instanceof Error ? e.message : String(e);
         const message = `Error issuing credential: ${errorMessage}`;
-        logger.error(message);
         await storeCredentialIssuanceFailedEvent(
           sessionInfo.sessionUri!,
           message,
@@ -241,7 +237,6 @@ export async function getIssuerRouter(issuer: VCIssuer) {
       .catch(async (e) => {
         const errorMessage = e instanceof Error ? e.message : String(e);
         const message = `Error generating issuance nonce: ${errorMessage}`;
-        logger.error(message);
         await storeCredentialIssuanceFailedEvent(
           sessionInfo.sessionUri!,
           message,
